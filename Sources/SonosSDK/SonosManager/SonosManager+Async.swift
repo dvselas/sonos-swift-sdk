@@ -326,4 +326,66 @@ extension SonosManager {
     public func stopWebSocket(for playerId: String) {
         subscriptionCoordinator.stopWebSocket(for: playerId)
     }
+
+    // MARK: - Advanced Playback
+
+    public func togglePlayPause(groupId: String) async throws {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        try await groupPlaybackService.togglePlayPause(authenticationToken: authenticationToken, groupId: groupId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+    }
+
+    public func seekRelative(groupId: String, itemId: String? = nil, deltaMillis: Int) async throws {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        try await groupPlaybackService.seekRelative(authenticationToken: authenticationToken, groupId: groupId, itemId: itemId, deltaMillis: deltaMillis)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+    }
+
+    public func loadLineIn(groupId: String, deviceId: String? = nil, playOnCompletion: Bool? = nil) async throws {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        try await groupPlaybackService.loadLineIn(authenticationToken: authenticationToken, groupId: groupId, deviceId: deviceId, playOnCompletion: playOnCompletion)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+        stateCache.invalidatePlaybackMetadata(for: groupId)
+    }
+
+    // MARK: - Advanced Group Operations
+
+    public func createGroup(householdId: String, playerIds: [String], musicContextGroupId: String? = nil) async throws -> Group {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        let group = try await groupService.createGroup(authenticationToken: authenticationToken, householdId: householdId, playerIds: playerIds, musicContextGroupId: musicContextGroupId)
+        stateCache.invalidateGroups()
+        return group
+    }
+
+    public func setGroupMembers(householdId: String, playerIds: [String]) async throws -> Group {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        let group = try await groupService.setGroupMembers(authenticationToken: authenticationToken, householdId: householdId, playerIds: playerIds)
+        stateCache.invalidateGroups()
+        return group
+    }
+
+    // MARK: - Music Service Accounts
+
+    public func matchMusicServiceAccount(householdId: String, serviceId: String, userIdHashCode: String, nickname: String, linkCode: String? = nil, linkDeviceId: String? = nil) async throws -> MusicServiceAccount {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        return try await musicServiceAccountsService.matchAccount(authenticationToken: authenticationToken, householdId: householdId, serviceId: serviceId, userIdHashCode: userIdHashCode, nickname: nickname, linkCode: linkCode, linkDeviceId: linkDeviceId)
+    }
 }

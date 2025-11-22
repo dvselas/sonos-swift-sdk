@@ -100,6 +100,18 @@ public class SonosManager: ObservableObject {
         return FavoriteService()
     }()
 
+    lazy var playbackSessionService: PlaybackSessionService = {
+        return PlaybackSessionService()
+    }()
+
+    lazy var playlistService: PlaylistService = {
+        return PlaylistService()
+    }()
+
+    lazy var musicServiceAccountsService: MusicServiceAccountsService = {
+        return MusicServiceAccountsService()
+    }()
+
     // MARK: Subscription and Cache Services
 
     public lazy var subscriptionCoordinator: SubscriptionCoordinator = {

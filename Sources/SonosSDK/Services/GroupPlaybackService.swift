@@ -96,10 +96,51 @@ struct GroupPlaybackService {
     }
     
     func setGroupSkipToSeek(authenticationToken: AuthenticationToken, groupId: String, positionMillis: UInt, success: @escaping (Data) -> (), failure: @escaping (Error?) -> ()) {
-        
+
         PlaybackSeekNetwork(accessToken: authenticationToken.access_token, groupId: groupId, positionMillis: positionMillis) { data in
             guard let data = data else {
-                let error = NSError.errorWithMessage(message: "Could not create PlaybackSkipToPreviousTrackNetwork object.")
+                let error = NSError.errorWithMessage(message: "Could not create PlaybackSeekNetwork object.")
+                failure(error)
+                return
+            }
+            success(data)
+        } failure: { error in
+            failure(error)
+        }.performRequest()
+    }
+
+    // MARK: - Advanced Playback
+
+    func togglePlayPause(authenticationToken: AuthenticationToken, groupId: String, success: @escaping (Data) -> (), failure: @escaping (Error?) -> ()) {
+        PlaybackTogglePlayPauseNetwork(accessToken: authenticationToken.access_token, groupId: groupId) { data in
+            guard let data = data else {
+                let error = NSError.errorWithMessage(message: "Could not create PlaybackTogglePlayPauseNetwork object.")
+                failure(error)
+                return
+            }
+            success(data)
+        } failure: { error in
+            failure(error)
+        }.performRequest()
+    }
+
+    func seekRelative(authenticationToken: AuthenticationToken, groupId: String, itemId: String? = nil, deltaMillis: Int, success: @escaping (Data) -> (), failure: @escaping (Error?) -> ()) {
+        PlaybackSeekRelativeNetwork(accessToken: authenticationToken.access_token, groupId: groupId, itemId: itemId, deltaMillis: deltaMillis) { data in
+            guard let data = data else {
+                let error = NSError.errorWithMessage(message: "Could not create PlaybackSeekRelativeNetwork object.")
+                failure(error)
+                return
+            }
+            success(data)
+        } failure: { error in
+            failure(error)
+        }.performRequest()
+    }
+
+    func loadLineIn(authenticationToken: AuthenticationToken, groupId: String, deviceId: String? = nil, playOnCompletion: Bool? = nil, success: @escaping (Data) -> (), failure: @escaping (Error?) -> ()) {
+        PlaybackLoadLineInNetwork(accessToken: authenticationToken.access_token, groupId: groupId, deviceId: deviceId, playOnCompletion: playOnCompletion) { data in
+            guard let data = data else {
+                let error = NSError.errorWithMessage(message: "Could not create PlaybackLoadLineInNetwork object.")
                 failure(error)
                 return
             }

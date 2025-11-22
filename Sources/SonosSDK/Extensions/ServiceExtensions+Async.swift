@@ -81,6 +81,36 @@ extension GroupPlaybackService {
             }
         }
     }
+
+    func togglePlayPause(authenticationToken: AuthenticationToken, groupId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            togglePlayPause(authenticationToken: authenticationToken, groupId: groupId) { _ in
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func seekRelative(authenticationToken: AuthenticationToken, groupId: String, itemId: String? = nil, deltaMillis: Int) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            seekRelative(authenticationToken: authenticationToken, groupId: groupId, itemId: itemId, deltaMillis: deltaMillis) { _ in
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func loadLineIn(authenticationToken: AuthenticationToken, groupId: String, deviceId: String? = nil, playOnCompletion: Bool? = nil) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            loadLineIn(authenticationToken: authenticationToken, groupId: groupId, deviceId: deviceId, playOnCompletion: playOnCompletion) { _ in
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
 }
 
 // MARK: - GroupVolumeService Async Extensions
@@ -230,6 +260,26 @@ extension GroupService {
         }
     }
 
+    func createGroup(authenticationToken: AuthenticationToken, householdId: String, playerIds: [String], musicContextGroupId: String? = nil) async throws -> Group {
+        try await withCheckedThrowingContinuation { continuation in
+            createGroup(authenticationToken: authenticationToken, householdId: householdId, playerIds: playerIds, musicContextGroupId: musicContextGroupId) { group in
+                continuation.resume(returning: group)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func setGroupMembers(authenticationToken: AuthenticationToken, householdId: String, playerIds: [String]) async throws -> Group {
+        try await withCheckedThrowingContinuation { continuation in
+            setGroupMembers(authenticationToken: authenticationToken, householdId: householdId, playerIds: playerIds) { group in
+                continuation.resume(returning: group)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
     func subscribe(authenticationToken: AuthenticationToken, householdId: String) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             subscribe(authenticationToken: authenticationToken, householdId: householdId) {
@@ -260,6 +310,194 @@ extension PlayerService {
         try await withCheckedThrowingContinuation { continuation in
             getPlayers(authenticationToken: authenticationToken, householdId: householdId) { players in
                 continuation.resume(returning: players)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+}
+
+// MARK: - PlaybackSessionService Async Extensions
+
+@available(iOS 14.0, macOS 10.15, *)
+extension PlaybackSessionService {
+
+    func createSession(authenticationToken: AuthenticationToken, groupId: String, appId: String, appContext: String, accountId: String? = nil, customData: String? = nil) async throws -> PlaybackSession {
+        try await withCheckedThrowingContinuation { continuation in
+            createSession(authenticationToken: authenticationToken, groupId: groupId, appId: appId, appContext: appContext, accountId: accountId, customData: customData) { session in
+                continuation.resume(returning: session)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func joinSession(authenticationToken: AuthenticationToken, groupId: String, appId: String, appContext: String) async throws -> PlaybackSession {
+        try await withCheckedThrowingContinuation { continuation in
+            joinSession(authenticationToken: authenticationToken, groupId: groupId, appId: appId, appContext: appContext) { session in
+                continuation.resume(returning: session)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func suspendSession(authenticationToken: AuthenticationToken, sessionId: String, queueVersion: String? = nil) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            suspendSession(authenticationToken: authenticationToken, sessionId: sessionId, queueVersion: queueVersion) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func loadCloudQueue(authenticationToken: AuthenticationToken, sessionId: String, queueBaseUrl: String, httpAuthorization: String? = nil, itemId: String? = nil, playOnCompletion: Bool? = nil, positionMillis: UInt? = nil, queueVersion: String? = nil, trackMetadata: [String: Any]? = nil, useHttpAuthorizationForMedia: Bool? = nil) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            loadCloudQueue(authenticationToken: authenticationToken, sessionId: sessionId, queueBaseUrl: queueBaseUrl, httpAuthorization: httpAuthorization, itemId: itemId, playOnCompletion: playOnCompletion, positionMillis: positionMillis, queueVersion: queueVersion, trackMetadata: trackMetadata, useHttpAuthorizationForMedia: useHttpAuthorizationForMedia) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func refreshCloudQueue(authenticationToken: AuthenticationToken, sessionId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            refreshCloudQueue(authenticationToken: authenticationToken, sessionId: sessionId) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func loadStreamUrl(authenticationToken: AuthenticationToken, sessionId: String, streamUrl: String, playOnCompletion: Bool? = nil) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, playOnCompletion: playOnCompletion) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func sessionSeek(authenticationToken: AuthenticationToken, sessionId: String, positionMillis: UInt, itemId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            sessionSeek(authenticationToken: authenticationToken, sessionId: sessionId, positionMillis: positionMillis, itemId: itemId) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func sessionSeekRelative(authenticationToken: AuthenticationToken, sessionId: String, deltaMillis: Int) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            sessionSeekRelative(authenticationToken: authenticationToken, sessionId: sessionId, deltaMillis: deltaMillis) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func sessionSkipToItem(authenticationToken: AuthenticationToken, sessionId: String, itemId: String, playOnCompletion: Bool? = nil) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            sessionSkipToItem(authenticationToken: authenticationToken, sessionId: sessionId, itemId: itemId, playOnCompletion: playOnCompletion) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func subscribe(authenticationToken: AuthenticationToken, sessionId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            subscribe(authenticationToken: authenticationToken, sessionId: sessionId) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func unsubscribe(authenticationToken: AuthenticationToken, sessionId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            unsubscribe(authenticationToken: authenticationToken, sessionId: sessionId) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+}
+
+// MARK: - PlaylistService Async Extensions
+
+@available(iOS 14.0, macOS 10.15, *)
+extension PlaylistService {
+
+    func getPlaylists(authenticationToken: AuthenticationToken, householdId: String) async throws -> [Playlist] {
+        try await withCheckedThrowingContinuation { continuation in
+            getPlaylists(authenticationToken: authenticationToken, householdId: householdId) { playlists in
+                continuation.resume(returning: playlists)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func getPlaylist(authenticationToken: AuthenticationToken, householdId: String, playlistId: String) async throws -> Playlist {
+        try await withCheckedThrowingContinuation { continuation in
+            getPlaylist(authenticationToken: authenticationToken, householdId: householdId, playlistId: playlistId) { playlist in
+                continuation.resume(returning: playlist)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func loadPlaylist(authenticationToken: AuthenticationToken, groupId: String, action: String? = nil, playlistId: String, playOnCompletion: Bool? = nil, playModes: [String]? = nil) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            loadPlaylist(authenticationToken: authenticationToken, groupId: groupId, action: action, playlistId: playlistId, playOnCompletion: playOnCompletion, playModes: playModes) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func subscribe(authenticationToken: AuthenticationToken, householdId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            subscribe(authenticationToken: authenticationToken, householdId: householdId) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+
+    func unsubscribe(authenticationToken: AuthenticationToken, householdId: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            unsubscribe(authenticationToken: authenticationToken, householdId: householdId) {
+                continuation.resume()
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+}
+
+// MARK: - MusicServiceAccountsService Async Extensions
+
+@available(iOS 14.0, macOS 10.15, *)
+extension MusicServiceAccountsService {
+
+    func matchAccount(authenticationToken: AuthenticationToken, householdId: String, serviceId: String, userIdHashCode: String, nickname: String, linkCode: String? = nil, linkDeviceId: String? = nil) async throws -> MusicServiceAccount {
+        try await withCheckedThrowingContinuation { continuation in
+            matchAccount(authenticationToken: authenticationToken, householdId: householdId, serviceId: serviceId, userIdHashCode: userIdHashCode, nickname: nickname, linkCode: linkCode, linkDeviceId: linkDeviceId) { account in
+                continuation.resume(returning: account)
             } failure: { error in
                 continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
             }

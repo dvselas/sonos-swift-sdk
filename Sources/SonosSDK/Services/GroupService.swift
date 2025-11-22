@@ -26,6 +26,20 @@ struct GroupService {
         }.performRequest()
     }
 
+    func createGroup(authenticationToken: AuthenticationToken, householdId: String, playerIds: [String], musicContextGroupId: String? = nil, success: @escaping (Group) -> (), failure: @escaping (Error?) -> ()) {
+        GroupCreateNetwork(accessToken: authenticationToken.access_token, householdId: householdId, playerIds: playerIds, musicContextGroupId: musicContextGroupId) { data in
+            guard let data = data,
+                  let group = self.decodeGroups(data) else {
+                let error = NSError.errorWithMessage(message: "Could not create Group object from response.")
+                failure(error)
+                return
+            }
+            success(group)
+        } failure: { error in
+            failure(error)
+        }.performRequest()
+    }
+
     func modifyGroupMembers(authenticationToken: AuthenticationToken, groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String], success: @escaping (Group?, Error?) -> (), failure: @escaping (Error?) -> ()) {
         GroupModifyMembersNetwork(accessToken: authenticationToken.access_token, groupId: groupId, playerIdsToAdd: playerIdsToAdd, playerIdsToRemove: playerIdsToRemove) { data in
             guard let data = data else {
@@ -33,6 +47,20 @@ struct GroupService {
                 return
             }
             success(self.decodeGroups(data), NSError.errorWithData(data: data))
+        } failure: { error in
+            failure(error)
+        }.performRequest()
+    }
+
+    func setGroupMembers(authenticationToken: AuthenticationToken, householdId: String, playerIds: [String], success: @escaping (Group) -> (), failure: @escaping (Error?) -> ()) {
+        GroupSetMembersNetwork(accessToken: authenticationToken.access_token, householdId: householdId, playerIds: playerIds) { data in
+            guard let data = data,
+                  let group = self.decodeGroups(data) else {
+                let error = NSError.errorWithMessage(message: "Could not create Group object from response.")
+                failure(error)
+                return
+            }
+            success(group)
         } failure: { error in
             failure(error)
         }.performRequest()
