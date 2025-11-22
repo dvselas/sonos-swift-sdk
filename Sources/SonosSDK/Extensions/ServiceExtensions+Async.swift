@@ -504,3 +504,19 @@ extension MusicServiceAccountsService {
         }
     }
 }
+
+// MARK: - GroupMetadataService Async Extensions
+
+@available(iOS 14.0, macOS 10.15, *)
+extension GroupMetadataService {
+
+    func getGroupPlaybackMetadata(authenticationToken: AuthenticationToken, groupId: String) async throws -> PlaybackMetadata {
+        try await withCheckedThrowingContinuation { continuation in
+            getGroupPlaybackMetadata(authenticationToken: authenticationToken, groupId: groupId) { metadata in
+                continuation.resume(returning: metadata)
+            } failure: { error in
+                continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))
+            }
+        }
+    }
+}

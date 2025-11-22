@@ -388,4 +388,33 @@ extension SonosManager {
 
         return try await musicServiceAccountsService.matchAccount(authenticationToken: authenticationToken, householdId: householdId, serviceId: serviceId, userIdHashCode: userIdHashCode, nickname: nickname, linkCode: linkCode, linkDeviceId: linkDeviceId)
     }
+
+    // MARK: - Playback Metadata
+
+    /// Get playback metadata with automatic caching
+    /// - Parameters:
+    ///   - groupId: The group ID
+    ///   - useCache: Whether to use cached data if available (default: true)
+    /// - Returns: The playback metadata including track info, artwork URLs, and service details
+    public func getGroupPlaybackMetadata(groupId: String, useCache: Bool = true) async throws -> PlaybackMetadata {
+        guard let authenticationToken = authenticationToken else {
+            throw NSError.errorWithMessage(message: "Could not load authentication token.")
+        }
+
+        // Check cache first if enabled
+        if useCache, let cached = stateCache.getPlaybackMetadata(for: groupId) {
+            return cached
+        }
+
+        // Fetch from API
+        let metadata = try await groupMetadataService.getGroupPlaybackMetadata(
+            authenticationToken: authenticationToken,
+            groupId: groupId
+        )
+
+        // Cache the result with default TTL
+        stateCache.setPlaybackMetadata(metadata, for: groupId)
+
+        return metadata
+    }
 }
