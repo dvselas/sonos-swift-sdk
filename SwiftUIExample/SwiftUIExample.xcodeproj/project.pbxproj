@@ -29,6 +29,7 @@
 		1AC798CA25E5FAC8009BC56F /* AudioClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC798C925E5FAC8009BC56F /* AudioClipView.swift */; };
 		1AF63243260B737F00138CC6 /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AF63242260B737F00138CC6 /* FavoritesView.swift */; };
 		1AFD43A126FC3C31001EA3E8 /* UIApplication+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFD43A026FC3C31001EA3E8 /* UIApplication+Extensions.swift */; };
+		F81C7F422DBA3A9F00CDB4C6 /* SonosSDK in Frameworks */ = {isa = PBXBuildFile; productRef = F81C7F412DBA3A9F00CDB4C6 /* SonosSDK */; };
 		F8DFE1AF2B02096D004E2886 /* PlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8DFE1AE2B02096D004E2886 /* PlaybackView.swift */; };
 /* End PBXBuildFile section */
 
@@ -63,6 +64,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F81C7F422DBA3A9F00CDB4C6 /* SonosSDK in Frameworks */,
 				1A756B4526FE83F100205061 /* SonosNetworking in Frameworks */,
 				1A9A4D1D25E36F7900DF3173 /* SonosSDK in Frameworks */,
 				1A9A4D1925E36F6300DF3173 /* SwiftUIRefresh in Frameworks */,
@@ -228,6 +230,7 @@
 				1A9A4D1C25E36F7900DF3173 /* SonosSDK */,
 				1A9977AD25F03BA30025D73E /* AlamofireImage */,
 				1A756B4426FE83F100205061 /* SonosNetworking */,
+				F81C7F412DBA3A9F00CDB4C6 /* SonosSDK */,
 			);
 			productName = SwiftUIExample;
 			productReference = 1A9A4CEF25E36DD500DF3173 /* SwiftUIExample.app */;
@@ -260,6 +263,7 @@
 				1A9A4D1725E36F6300DF3173 /* XCRemoteSwiftPackageReference "SwiftUIRefresh" */,
 				1A9977AC25F03BA30025D73E /* XCRemoteSwiftPackageReference "AlamofireImage" */,
 				1A756B4326FE83F100205061 /* XCRemoteSwiftPackageReference "sonos-swift-networking" */,
+				F81C7F402DBA3A9F00CDB4C6 /* XCRemoteSwiftPackageReference "sonos-swift-sdk" */,
 			);
 			productRefGroup = 1A9A4CF025E36DD500DF3173 /* Products */;
 			projectDirPath = "";
@@ -455,7 +459,7 @@
 				CODE_SIGN_ENTITLEMENTS = SwiftUIExample/SwiftUIExample.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"SwiftUIExample/Preview Content\"";
-				DEVELOPMENT_TEAM = 483F7QJ6YL;
+				DEVELOPMENT_TEAM = UA5PQ9SVT8;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SwiftUIExample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -479,7 +483,7 @@
 				CODE_SIGN_ENTITLEMENTS = SwiftUIExample/SwiftUIExample.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"SwiftUIExample/Preview Content\"";
-				DEVELOPMENT_TEAM = 483F7QJ6YL;
+				DEVELOPMENT_TEAM = UA5PQ9SVT8;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = SwiftUIExample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -543,6 +547,14 @@
 				minimumVersion = 0.0.3;
 			};
 		};
+		F81C7F402DBA3A9F00CDB4C6 /* XCRemoteSwiftPackageReference "sonos-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dvselas/sonos-swift-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.0.9;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -563,6 +575,11 @@
 		};
 		1A9A4D1C25E36F7900DF3173 /* SonosSDK */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = SonosSDK;
+		};
+		F81C7F412DBA3A9F00CDB4C6 /* SonosSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F81C7F402DBA3A9F00CDB4C6 /* XCRemoteSwiftPackageReference "sonos-swift-sdk" */;
 			productName = SonosSDK;
 		};
 /* End XCSwiftPackageProductDependency section */

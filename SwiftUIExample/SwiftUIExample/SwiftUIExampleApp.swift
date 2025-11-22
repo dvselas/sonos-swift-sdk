@@ -15,7 +15,7 @@ struct SonosConfiguration {
     static let key = "f79521cc-5f45-4da4-bf0d-82f2382fad71"
     static let secret = "a624f024-2e8e-4db9-954f-515aad07771f"
     static let redirectURI = "sonos-swift-sdk://authorize"
-    static let callbackURL = "https://webhook.site/d350a1b0-753f-4f2f-9bd2-3504d92dcb0d"
+    static let callbackURL = "your-webhook-api-url"
 
 }
 

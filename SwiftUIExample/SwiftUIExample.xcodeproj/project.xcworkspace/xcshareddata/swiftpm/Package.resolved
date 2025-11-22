@@ -1,86 +1,160 @@
 {
-  "pins" : [
-    {
-      "identity" : "alamofire",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Alamofire/Alamofire.git",
-      "state" : {
-        "revision" : "3dc6a42c7727c49bf26508e29b0a0b35f9c7e1ad",
-        "version" : "5.8.1"
+  "object": {
+    "pins": [
+      {
+        "package": "Alamofire",
+        "repositoryURL": "https://github.com/Alamofire/Alamofire.git",
+        "state": {
+          "branch": null,
+          "revision": "3dc6a42c7727c49bf26508e29b0a0b35f9c7e1ad",
+          "version": "5.8.1"
+        }
+      },
+      {
+        "package": "AlamofireImage",
+        "repositoryURL": "https://github.com/Alamofire/AlamofireImage.git",
+        "state": {
+          "branch": null,
+          "revision": "1eaf3b6c6882bed10f6e7b119665599dd2329aa1",
+          "version": "4.3.0"
+        }
+      },
+      {
+        "package": "BetterSafariView",
+        "repositoryURL": "https://github.com/stleamist/BetterSafariView.git",
+        "state": {
+          "branch": null,
+          "revision": "884533749e55949b2566030948c6fdbe2873ed0c",
+          "version": "2.4.2"
+        }
+      },
+      {
+        "package": "CollectionConcurrencyKit",
+        "repositoryURL": "https://github.com/JohnSundell/CollectionConcurrencyKit.git",
+        "state": {
+          "branch": null,
+          "revision": "b4f23e24b5a1bff301efc5e70871083ca029ff95",
+          "version": "0.2.0"
+        }
+      },
+      {
+        "package": "CryptoSwift",
+        "repositoryURL": "https://github.com/krzyzanowskim/CryptoSwift.git",
+        "state": {
+          "branch": null,
+          "revision": "729e01bc9b9dab466ac85f21fb9ee2bc1c61b258",
+          "version": "1.8.4"
+        }
+      },
+      {
+        "package": "SonosNetworking",
+        "repositoryURL": "https://github.com/JimmyJammed/sonos-swift-networking.git",
+        "state": {
+          "branch": null,
+          "revision": "bfc2917cbceb6ee63490c00ee446220195586bb4",
+          "version": "1.0.0"
+        }
+      },
+      {
+        "package": "SourceKitten",
+        "repositoryURL": "https://github.com/jpsim/SourceKitten.git",
+        "state": {
+          "branch": null,
+          "revision": "eb6656ed26bdef967ad8d07c27e2eab34dc582f2",
+          "version": "0.37.0"
+        }
+      },
+      {
+        "package": "swift-argument-parser",
+        "repositoryURL": "https://github.com/apple/swift-argument-parser.git",
+        "state": {
+          "branch": null,
+          "revision": "41982a3656a71c768319979febd796c6fd111d5c",
+          "version": "1.5.0"
+        }
+      },
+      {
+        "package": "swift-syntax",
+        "repositoryURL": "https://github.com/swiftlang/swift-syntax.git",
+        "state": {
+          "branch": null,
+          "revision": "1103c45ece4f7fe160b8f75b4ea1ee2e5fac1841",
+          "version": "601.0.0"
+        }
+      },
+      {
+        "package": "SwiftLint",
+        "repositoryURL": "https://github.com/realm/SwiftLint.git",
+        "state": {
+          "branch": null,
+          "revision": "625792423014cc49b0a1e5a1a5c0d6b8b3de10f9",
+          "version": "0.59.1"
+        }
+      },
+      {
+        "package": "swiftui-introspect",
+        "repositoryURL": "https://github.com/siteline/SwiftUI-Introspect.git",
+        "state": {
+          "branch": null,
+          "revision": "121c146fe591b1320238d054ae35c81ffa45f45a",
+          "version": "0.12.0"
+        }
+      },
+      {
+        "package": "SwiftUIRefresh",
+        "repositoryURL": "https://github.com/timbersoftware/SwiftUIRefresh.git",
+        "state": {
+          "branch": null,
+          "revision": "fa8fac7b5eb5c729983a8bef65f094b5e0d12014",
+          "version": "0.0.3"
+        }
+      },
+      {
+        "package": "SwiftyJSON",
+        "repositoryURL": "https://github.com/SwiftyJSON/SwiftyJSON.git",
+        "state": {
+          "branch": null,
+          "revision": "af76cf3ef710b6ca5f8c05f3a31307d44a3c5828",
+          "version": "5.0.2"
+        }
+      },
+      {
+        "package": "SwiftyTextTable",
+        "repositoryURL": "https://github.com/scottrhoyt/SwiftyTextTable.git",
+        "state": {
+          "branch": null,
+          "revision": "c6df6cf533d120716bff38f8ff9885e1ce2a4ac3",
+          "version": "0.9.0"
+        }
+      },
+      {
+        "package": "Swinject",
+        "repositoryURL": "https://github.com/Swinject/Swinject.git",
+        "state": {
+          "branch": null,
+          "revision": "be9dbcc7b86811bc131539a20c6f9c2d3e56919f",
+          "version": "2.9.1"
+        }
+      },
+      {
+        "package": "SWXMLHash",
+        "repositoryURL": "https://github.com/drmohundro/SWXMLHash.git",
+        "state": {
+          "branch": null,
+          "revision": "a853604c9e9a83ad9954c7e3d2a565273982471f",
+          "version": "7.0.2"
+        }
+      },
+      {
+        "package": "Yams",
+        "repositoryURL": "https://github.com/jpsim/Yams.git",
+        "state": {
+          "branch": null,
+          "revision": "b4b8042411dc7bbb696300a34a4bf3ba1b7ad19b",
+          "version": "5.3.1"
+        }
       }
-    },
-    {
-      "identity" : "alamofireimage",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Alamofire/AlamofireImage.git",
-      "state" : {
-        "revision" : "1eaf3b6c6882bed10f6e7b119665599dd2329aa1",
-        "version" : "4.3.0"
-      }
-    },
-    {
-      "identity" : "bettersafariview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stleamist/BetterSafariView.git",
-      "state" : {
-        "revision" : "884533749e55949b2566030948c6fdbe2873ed0c",
-        "version" : "2.4.2"
-      }
-    },
-    {
-      "identity" : "sonos-swift-networking",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/JimmyJammed/sonos-swift-networking.git",
-      "state" : {
-        "revision" : "bfc2917cbceb6ee63490c00ee446220195586bb4",
-        "version" : "1.0.0"
-      }
-    },
-    {
-      "identity" : "sonos-swift-sdk",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/JimmyJammed/sonos-swift-sdk.git",
-      "state" : {
-        "revision" : "169cb3e1cdec783d7511c8a03a905b9174eaeebf",
-        "version" : "1.0.0"
-      }
-    },
-    {
-      "identity" : "swiftui-introspect",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
-      "state" : {
-        "revision" : "121c146fe591b1320238d054ae35c81ffa45f45a",
-        "version" : "0.12.0"
-      }
-    },
-    {
-      "identity" : "swiftuirefresh",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/timbersoftware/SwiftUIRefresh.git",
-      "state" : {
-        "revision" : "fa8fac7b5eb5c729983a8bef65f094b5e0d12014",
-        "version" : "0.0.3"
-      }
-    },
-    {
-      "identity" : "swiftyjson",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftyJSON/SwiftyJSON.git",
-      "state" : {
-        "revision" : "b3dcd7dbd0d488e1a7077cb33b00f2083e382f07",
-        "version" : "5.0.1"
-      }
-    },
-    {
-      "identity" : "swinject",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Swinject/Swinject.git",
-      "state" : {
-        "revision" : "463cb2d659c8ae34899d18057ea5b1bb86fc3178",
-        "version" : "2.8.4"
-      }
-    }
-  ],
-  "version" : 2
+    ]
+  },
+  "version": 1
 }

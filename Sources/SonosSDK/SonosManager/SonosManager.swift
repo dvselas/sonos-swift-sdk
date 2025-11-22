@@ -100,11 +100,21 @@ public class SonosManager: ObservableObject {
         return FavoriteService()
     }()
 
+    // MARK: Subscription and Cache Services
+
+    public lazy var subscriptionCoordinator: SubscriptionCoordinator = {
+        return SubscriptionCoordinator()
+    }()
+
+    public var stateCache: StateCacheManager {
+        return StateCacheManager.shared
+    }
+
     // MARK: Internal Functions
-    
+
     func configureDependencies() {
         let container = ConfigurationProvider.shared.container
-        
+
         container.register(SonosManager.self) { _ in self }
     }
 

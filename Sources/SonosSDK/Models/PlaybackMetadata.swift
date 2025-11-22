@@ -109,7 +109,7 @@ public struct Images {
     init(_ data: [JSON]) {
         let json = JSON(data)
         self._objectType = json["_objectType"].string ?? ""
-        self.url = json["url"].string ?? ""
+        self.url = json["imageUrl"].string ?? ""
     }
 }
 
