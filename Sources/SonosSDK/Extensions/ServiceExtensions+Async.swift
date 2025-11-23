@@ -372,9 +372,9 @@ extension PlaybackSessionService {
         }
     }
 
-    func loadStreamUrl(authenticationToken: AuthenticationToken, sessionId: String, streamUrl: String, playOnCompletion: Bool? = nil) async throws {
+    func loadStreamUrl(authenticationToken: AuthenticationToken, sessionId: String, streamUrl: String, itemId: String? = nil, playOnCompletion: Bool? = nil, stationMetadata: [String: Any]? = nil) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, playOnCompletion: playOnCompletion) {
+            loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, itemId: itemId, playOnCompletion: playOnCompletion, stationMetadata: stationMetadata) {
                 continuation.resume()
             } failure: { error in
                 continuation.resume(throwing: error ?? NSError.errorWithMessage(message: "Unknown error"))

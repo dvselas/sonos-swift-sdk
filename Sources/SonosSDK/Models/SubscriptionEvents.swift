@@ -374,6 +374,71 @@ public struct AudioClipStatusEvent {
     }
 }
 
+// MARK: - Playback Session Events
+
+public enum PlaybackSessionEvent: SubscriptionEvent {
+    case sessionEvicted(SessionEvictedEvent)
+    case sessionError(SessionErrorEvent)
+
+    public var namespace: String { "playbackSession" }
+    public var type: String {
+        switch self {
+        case .sessionEvicted: return "sessionEvicted"
+        case .sessionError: return "sessionError"
+        }
+    }
+
+    init?(from json: JSON) {
+        guard let type = json["type"].string else { return nil }
+
+        switch type {
+        case "sessionEvicted":
+            guard let event = SessionEvictedEvent(json) else { return nil }
+            self = .sessionEvicted(event)
+        case "sessionError":
+            guard let event = SessionErrorEvent(json) else { return nil }
+            self = .sessionError(event)
+        default:
+            return nil
+        }
+    }
+}
+
+public struct SessionEvictedEvent {
+    public let sessionId: String
+    public let reason: String?
+    public let timestamp: Date
+
+    init?(_ json: JSON) {
+        guard let sessionId = json["sessionId"].string else {
+            return nil
+        }
+
+        self.sessionId = sessionId
+        self.reason = json["reason"].string
+        self.timestamp = Date()
+    }
+}
+
+public struct SessionErrorEvent {
+    public let sessionId: String
+    public let errorCode: String
+    public let reason: String?
+    public let timestamp: Date
+
+    init?(_ json: JSON) {
+        guard let sessionId = json["sessionId"].string,
+              let errorCode = json["errorCode"].string else {
+            return nil
+        }
+
+        self.sessionId = sessionId
+        self.errorCode = errorCode
+        self.reason = json["reason"].string
+        self.timestamp = Date()
+    }
+}
+
 // MARK: - Event Parser
 
 public class SubscriptionEventParser {
@@ -398,6 +463,8 @@ public class SubscriptionEventParser {
             return PlaylistsEvent(from: json)
         case "audioClip":
             return AudioClipEvent(from: json)
+        case "playbackSession":
+            return PlaybackSessionEvent(from: json)
         default:
             return nil
         }

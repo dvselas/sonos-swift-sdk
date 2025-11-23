@@ -69,8 +69,8 @@ struct PlaybackSessionService {
 
     // MARK: - Stream URL
 
-    func loadStreamUrl(authenticationToken: AuthenticationToken, sessionId: String, streamUrl: String, playOnCompletion: Bool? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionLoadStreamUrlNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, streamUrl: streamUrl, playOnCompletion: playOnCompletion, success: { data in
+    func loadStreamUrl(authenticationToken: AuthenticationToken, sessionId: String, streamUrl: String, itemId: String? = nil, playOnCompletion: Bool? = nil, stationMetadata: [String: Any]? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
+        PlaybackSessionLoadStreamUrlNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, itemId: itemId, streamUrl: streamUrl, playOnCompletion: playOnCompletion, stationMetadata: stationMetadata, success: { data in
             success()
         }, failure: { error in
             failure(error)

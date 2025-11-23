@@ -65,14 +65,14 @@ extension SonosManager {
 
     // MARK: - Stream URL (Callback-based)
 
-    public func loadStreamUrl(sessionId: String, streamUrl: String, playOnCompletion: Bool? = nil, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
+    public func loadStreamUrl(sessionId: String, streamUrl: String, itemId: String? = nil, playOnCompletion: Bool? = nil, stationMetadata: [String: Any]? = nil, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
         guard let authenticationToken = authenticationToken else {
             let error = NSError.errorWithMessage(message: "Could not load authentication token.")
             failure(error)
             return
         }
 
-        playbackSessionService.loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, playOnCompletion: playOnCompletion, success: success, failure: failure)
+        playbackSessionService.loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, itemId: itemId, playOnCompletion: playOnCompletion, stationMetadata: stationMetadata, success: success, failure: failure)
     }
 
     // MARK: - Session Playback Control (Callback-based)
@@ -187,12 +187,12 @@ extension SonosManager {
 
     // MARK: - Stream URL (Async)
 
-    public func loadStreamUrl(groupId: String, sessionId: String, streamUrl: String, playOnCompletion: Bool? = nil) async throws {
+    public func loadStreamUrl(groupId: String, sessionId: String, streamUrl: String, itemId: String? = nil, playOnCompletion: Bool? = nil, stationMetadata: [String: Any]? = nil) async throws {
         guard let authenticationToken = authenticationToken else {
             throw NSError.errorWithMessage(message: "Could not load authentication token.")
         }
 
-        try await playbackSessionService.loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, playOnCompletion: playOnCompletion)
+        try await playbackSessionService.loadStreamUrl(authenticationToken: authenticationToken, sessionId: sessionId, streamUrl: streamUrl, itemId: itemId, playOnCompletion: playOnCompletion, stationMetadata: stationMetadata)
 
         stateCache.invalidatePlaybackStatus(for: groupId)
         stateCache.invalidatePlaybackMetadata(for: groupId)

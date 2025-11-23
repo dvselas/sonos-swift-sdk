@@ -23,6 +23,7 @@ public class SubscriptionCoordinator {
     public let groupVolumePublisher = PassthroughSubject<(groupId: String, volume: GroupVolume), Never>()
     public let playerVolumePublisher = PassthroughSubject<(playerId: String, volume: PlayerVolume), Never>()
     public let groupChangePublisher = PassthroughSubject<GroupChangedEvent, Never>()
+    public let playbackSessionPublisher = PassthroughSubject<(sessionId: String, event: PlaybackSessionEvent), Never>()
 
     private let processingQueue = DispatchQueue(label: "com.sonos.subscription.processing", qos: .userInitiated)
 
@@ -106,6 +107,9 @@ public class SubscriptionCoordinator {
 
         case let playlistsEvent as PlaylistsEvent:
             handlePlaylistsEvent(playlistsEvent)
+
+        case let sessionEvent as PlaybackSessionEvent:
+            handlePlaybackSessionEvent(sessionEvent)
 
         default:
             print("Unhandled event type: \(type(of: event))")
@@ -200,6 +204,18 @@ public class SubscriptionCoordinator {
         switch event {
         case .changed(let changeEvent):
             print("Playlists changed for household: \(changeEvent.householdId)")
+        }
+    }
+
+    private func handlePlaybackSessionEvent(_ event: PlaybackSessionEvent) {
+        switch event {
+        case .sessionEvicted(let evictedEvent):
+            print("Session evicted: \(evictedEvent.sessionId), reason: \(evictedEvent.reason ?? "unknown")")
+            playbackSessionPublisher.send((evictedEvent.sessionId, event))
+
+        case .sessionError(let errorEvent):
+            print("Session error: \(errorEvent.sessionId), code: \(errorEvent.errorCode)")
+            playbackSessionPublisher.send((errorEvent.sessionId, event))
         }
     }
 
