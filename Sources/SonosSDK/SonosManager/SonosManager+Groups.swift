@@ -1,62 +1,68 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/17/21.
+//  SonosManager+Groups.swift
+//  SonosSDK
 //
 
 import Foundation
 
 extension SonosManager {
 
-    public func getGroups(householdId: String, success: @escaping ([Group], [Player]) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
+    /// Get all groups and players for a household (with optional caching)
+    public func getGroups(householdId: String, useCache: Bool = true) async throws -> ([Group], [Player]) {
+        if useCache, let cachedGroups = stateCache.getGroups(), let cachedPlayers = stateCache.getPlayers() {
+            return (cachedGroups, cachedPlayers)
         }
 
-        groupService.getGroups(authenticationToken: authenticationToken, householdId: householdId, success: { groups, players in
-            success(groups, players)
-        }, failure: failure)
+        let (groups, players) = try await groupService.getGroups(householdId: householdId)
+        stateCache.setGroups(groups)
+        stateCache.setPlayers(players)
+        return (groups, players)
     }
 
+    /// Get players for a household (with optional caching)
+    public func getPlayers(householdId: String, useCache: Bool = true) async throws -> [Player] {
+        if useCache, let cached = stateCache.getPlayers() {
+            return cached
+        }
+
+        let (_, players) = try await groupService.getGroups(householdId: householdId)
+        stateCache.setPlayers(players)
+        return players
+    }
+
+    /// Create a new group from specified players
+    public func createGroup(householdId: String, playerIds: [String], musicContextGroupId: String? = nil) async throws -> Group {
+        let group = try await groupService.createGroup(householdId: householdId, playerIds: playerIds, musicContextGroupId: musicContextGroupId)
+        stateCache.invalidateGroups()
+        return group
+    }
+
+    /// Modify group membership by adding/removing players
+    public func modifyGroupMembers(groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String]) async throws -> Group {
+        let group = try await groupService.modifyGroupMembers(groupId: groupId, playerIdsToAdd: playerIdsToAdd, playerIdsToRemove: playerIdsToRemove)
+        stateCache.invalidateGroups()
+        return group
+    }
+
+    /// Set group members (replaces current membership)
+    public func setGroupMembers(householdId: String, playerIds: [String]) async throws -> Group {
+        let group = try await groupService.setGroupMembers(householdId: householdId, playerIds: playerIds)
+        stateCache.invalidateGroups()
+        return group
+    }
+
+    /// Subscribe to group change events
+    public func subscribeToGroups(householdId: String) async throws {
+        try await groupService.subscribe(householdId: householdId)
+    }
+
+    /// Unsubscribe from group change events
+    public func unsubscribeFromGroups(householdId: String) async throws {
+        try await groupService.unsubscribe(householdId: householdId)
+    }
+
+    /// Get group members from a player list
     public func getGroupMembers(group: Group, players: [Player]) -> [Player] {
-        let groupPlayers = players.filter { return group.playerIDs.contains($0.id) }
-        return groupPlayers
+        players.filter { group.playerIds.contains($0.id) }
     }
-
-    public func modifyGroupMembers(groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String], success: @escaping (Group?, Error?) -> Void, failure: @escaping (Error?) -> Void) {
-
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        groupService.modifyGroupMembers(authenticationToken: authenticationToken, groupId: groupId, playerIdsToAdd: playerIdsToAdd, playerIdsToRemove: playerIdsToRemove, success: { group, error in
-            success(group, error)
-        }, failure: failure)
-    }
-
-    public func subscribeToGroups(forHouseholdId householdId: String, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        groupService.subscribe(authenticationToken: authenticationToken, householdId: householdId, success: success, failure: failure)
-    }
-
-    public func unsubscribeToGroups(forHouseholdId householdId: String, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        groupService.unsubscribe(authenticationToken: authenticationToken, householdId: householdId, success: success, failure: failure)
-    }
-
 }

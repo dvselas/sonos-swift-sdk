@@ -6,26 +6,11 @@
 //
 
 import Foundation
-import SwiftyJSON
 
-public struct MusicServiceAccount {
+public struct MusicServiceAccount: Codable, Sendable {
 
-    public var accountId: String
-    public var serviceId: String
-    public var nickname: String?
-    public var isGuest: Bool
-
-    init?(_ data: Any) {
-        let json = JSON(data)
-
-        guard let accountId = json["accountId"].string,
-              let serviceId = json["serviceId"].string else {
-            return nil
-        }
-
-        self.accountId = accountId
-        self.serviceId = serviceId
-        self.nickname = json["nickname"].string
-        self.isGuest = json["isGuest"].bool ?? false
-    }
+    public let accountId: String
+    public let serviceId: String
+    public let nickname: String?
+    public let isGuest: Bool?
 }

@@ -2,122 +2,62 @@
 //  PlaybackSessionService.swift
 //  SonosSDK
 //
-//  Created on 2025-01-22.
-//
 
 import Foundation
-import SwiftyJSON
-import SonosNetworking
 
 struct PlaybackSessionService {
 
-    // MARK: - Session Management
+    private let client: HTTPClientProtocol
 
-    func createSession(authenticationToken: AuthenticationToken, groupId: String, appId: String, appContext: String, accountId: String? = nil, customData: String? = nil, success: @escaping (PlaybackSession) -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionCreateNetwork(accessToken: authenticationToken.access_token, groupId: groupId, accountId: accountId, appContext: appContext, appId: appId, customData: customData, success: { data in
-            guard let data = data,
-                  let session = PlaybackSession(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create PlaybackSession object.")
-                failure(error)
-                return
-            }
-            success(session)
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    init(client: HTTPClientProtocol) {
+        self.client = client
     }
 
-    func joinSession(authenticationToken: AuthenticationToken, groupId: String, appId: String, appContext: String, success: @escaping (PlaybackSession) -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionJoinNetwork(accessToken: authenticationToken.access_token, groupId: groupId, appId: appId, appContext: appContext, success: { data in
-            guard let data = data,
-                  let session = PlaybackSession(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create PlaybackSession object.")
-                failure(error)
-                return
-            }
-            success(session)
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func createSession(groupId: String, appId: String, appContext: String? = nil, customData: String? = nil) async throws -> PlaybackSession {
+        try await client.request(.createSession(groupId: groupId, appId: appId, appContext: appContext, customData: customData))
     }
 
-    func suspendSession(authenticationToken: AuthenticationToken, sessionId: String, queueVersion: String? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionSuspendNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, queueVersion: queueVersion, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func joinSession(sessionId: String, appId: String, appContext: String? = nil) async throws -> PlaybackSession {
+        try await client.request(.joinSession(sessionId: sessionId, appId: appId, appContext: appContext))
     }
 
-    // MARK: - Cloud Queue Operations
-
-    func loadCloudQueue(authenticationToken: AuthenticationToken, sessionId: String, queueBaseUrl: String, httpAuthorization: String? = nil, itemId: String? = nil, playOnCompletion: Bool? = nil, positionMillis: UInt? = nil, queueVersion: String? = nil, trackMetadata: [String: Any]? = nil, useHttpAuthorizationForMedia: Bool? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionLoadCloudQueueNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, httpAuthorization: httpAuthorization, itemId: itemId, playOnCompletion: playOnCompletion, positionMillis: positionMillis, queueBaseUrl: queueBaseUrl, queueVersion: queueVersion, trackMetadata: trackMetadata, useHttpAuthorizationForMedia: useHttpAuthorizationForMedia, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func joinOrCreateSession(groupId: String, appId: String, appContext: String? = nil, customData: String? = nil) async throws -> PlaybackSession {
+        try await client.request(.joinOrCreateSession(groupId: groupId, appId: appId, appContext: appContext, customData: customData))
     }
 
-    func refreshCloudQueue(authenticationToken: AuthenticationToken, sessionId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionRefreshCloudQueueNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func suspendSession(sessionId: String) async throws {
+        try await client.request(.suspendSession(sessionId: sessionId))
     }
 
-    // MARK: - Stream URL
-
-    func loadStreamUrl(authenticationToken: AuthenticationToken, sessionId: String, streamUrl: String, itemId: String? = nil, playOnCompletion: Bool? = nil, stationMetadata: [String: Any]? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionLoadStreamUrlNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, itemId: itemId, streamUrl: streamUrl, playOnCompletion: playOnCompletion, stationMetadata: stationMetadata, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func loadCloudQueue(sessionId: String, cloudQueue: CloudQueueBody) async throws {
+        try await client.request(.loadCloudQueue(sessionId: sessionId, cloudQueue: cloudQueue))
     }
 
-    // MARK: - Session Playback Control
-
-    func sessionSeek(authenticationToken: AuthenticationToken, sessionId: String, positionMillis: UInt, itemId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionSeekNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, itemId: itemId, positionMillis: positionMillis, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func refreshCloudQueue(sessionId: String) async throws {
+        try await client.request(.refreshCloudQueue(sessionId: sessionId))
     }
 
-    func sessionSeekRelative(authenticationToken: AuthenticationToken, sessionId: String, deltaMillis: Int, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionSeekRelativeNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, deltaMillis: deltaMillis, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func loadStreamUrl(sessionId: String, streamUrl: String, item: StreamItemBody? = nil, playOnCompletion: Bool? = nil) async throws {
+        try await client.request(.loadStreamUrl(sessionId: sessionId, streamUrl: streamUrl, item: item, playOnCompletion: playOnCompletion))
     }
 
-    func sessionSkipToItem(authenticationToken: AuthenticationToken, sessionId: String, itemId: String, playOnCompletion: Bool? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionSkipToItemNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, itemId: itemId, playOnCompletion: playOnCompletion, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func seek(sessionId: String, positionMillis: UInt, itemId: String? = nil) async throws {
+        try await client.request(.sessionSeek(sessionId: sessionId, positionMillis: positionMillis, itemId: itemId))
     }
 
-    // MARK: - Subscriptions
-
-    func subscribe(authenticationToken: AuthenticationToken, sessionId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionSubscribeNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func seekRelative(sessionId: String, deltaMillis: Int, itemId: String? = nil) async throws {
+        try await client.request(.sessionSeekRelative(sessionId: sessionId, deltaMillis: deltaMillis, itemId: itemId))
     }
 
-    func unsubscribe(authenticationToken: AuthenticationToken, sessionId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackSessionUnsubscribeNetwork(accessToken: authenticationToken.access_token, sessionId: sessionId, success: { data in
-            success()
-        }, failure: { error in
-            failure(error)
-        }).performRequest()
+    func skipToItem(sessionId: String, itemId: String, queueVersion: String? = nil) async throws {
+        try await client.request(.sessionSkipToItem(sessionId: sessionId, itemId: itemId, queueVersion: queueVersion))
+    }
+
+    func subscribe(sessionId: String) async throws {
+        try await client.request(.subscribeToPlaybackSession(sessionId: sessionId))
+    }
+
+    func unsubscribe(sessionId: String) async throws {
+        try await client.request(.unsubscribeFromPlaybackSession(sessionId: sessionId))
     }
 }

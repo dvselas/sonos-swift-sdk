@@ -1,28 +1,33 @@
 //
-//  File.swift
-//  
+//  AuthService.swift
+//  SonosSDK
 //
-//  Created by James Hickman on 2/9/21.
+//  Unified authentication service replacing the old callback-based services.
 //
 
 import Foundation
-import SwiftyJSON
-import SonosNetworking
 
-struct AuthenticationTokenService {
+/// Handles OAuth token exchange and refresh via the TokenManager
+struct AuthService {
 
-    func getAuthenticationToken(authorization: Authorization, encodedKeys: String, redirectURI: String, success: @escaping (AuthenticationToken) -> (), failure: @escaping (Error?) -> ()) {
-        AuthenticationTokenNetwork(authorizationCode: authorization.code, encodedKeys: encodedKeys, redirectURI: redirectURI) { data in
-            guard let data = data,
-                  let token = AuthenticationToken(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create authentication token.")
-                failure(error)
-                return
-            }
-            success(token)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    private let tokenManager: TokenManager
+
+    init(tokenManager: TokenManager) {
+        self.tokenManager = tokenManager
     }
 
+    /// Exchange an authorization code for tokens
+    func exchangeCode(_ authCode: String) async throws -> TokenManager.TokenResponse {
+        try await tokenManager.exchangeCode(authCode)
+    }
+
+    /// Force refresh the current token
+    func refreshToken() async throws {
+        try await tokenManager.forceRefresh()
+    }
+
+    /// Clear all stored tokens
+    func logout() async {
+        await tokenManager.clearTokens()
+    }
 }

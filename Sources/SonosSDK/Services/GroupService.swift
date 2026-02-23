@@ -1,120 +1,57 @@
 //
-//  File.swift
-//  
+//  GroupService.swift
+//  SonosSDK
 //
 //  Created by James Hickman on 2/17/21.
 //
 
 import Foundation
-import SwiftyJSON
-import SonosNetworking
 
 struct GroupService {
-            
-    func getGroups(authenticationToken: AuthenticationToken, householdId: String, success: @escaping ([Group], [Player]) -> (), failure: @escaping (Error?) -> ()) {
-        GroupGetNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            let results = data.map({ self.decode($0) })
-            guard let groups = results?.0,
-                  let players = results?.1 else {
-                let error = NSError.errorWithMessage(message: "Could not create a GroupNetwork object from response data.")
-                failure(error)
-                return
-            }
-            success(groups, players)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+
+    private let client: HTTPClientProtocol
+
+    init(client: HTTPClientProtocol) {
+        self.client = client
     }
 
-    func createGroup(authenticationToken: AuthenticationToken, householdId: String, playerIds: [String], musicContextGroupId: String? = nil, success: @escaping (Group) -> (), failure: @escaping (Error?) -> ()) {
-        GroupCreateNetwork(accessToken: authenticationToken.access_token, householdId: householdId, playerIds: playerIds, musicContextGroupId: musicContextGroupId) { data in
-            guard let data = data,
-                  let group = self.decodeGroups(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create Group object from response.")
-                failure(error)
-                return
-            }
-            success(group)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    /// Get all groups and players for a household
+    func getGroups(householdId: String) async throws -> ([Group], [Player]) {
+        let response: GroupsResponse = try await client.request(.getGroups(householdId: householdId))
+        return (response.groups, response.players)
     }
 
-    func modifyGroupMembers(authenticationToken: AuthenticationToken, groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String], success: @escaping (Group?, Error?) -> (), failure: @escaping (Error?) -> ()) {
-        GroupModifyMembersNetwork(accessToken: authenticationToken.access_token, groupId: groupId, playerIdsToAdd: playerIdsToAdd, playerIdsToRemove: playerIdsToRemove) { data in
-            guard let data = data else {
-                success(nil, nil)
-                return
-            }
-            success(self.decodeGroups(data), NSError.errorWithData(data: data))
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    /// Create a new group from the specified players
+    func createGroup(householdId: String, playerIds: [String], musicContextGroupId: String? = nil) async throws -> Group {
+        let response: GroupResponse = try await client.request(
+            .createGroup(householdId: householdId, playerIds: playerIds, musicContextGroupId: musicContextGroupId)
+        )
+        return response.group
     }
 
-    func setGroupMembers(authenticationToken: AuthenticationToken, householdId: String, playerIds: [String], success: @escaping (Group) -> (), failure: @escaping (Error?) -> ()) {
-        GroupSetMembersNetwork(accessToken: authenticationToken.access_token, householdId: householdId, playerIds: playerIds) { data in
-            guard let data = data,
-                  let group = self.decodeGroups(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create Group object from response.")
-                failure(error)
-                return
-            }
-            success(group)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    /// Modify group membership by adding/removing players
+    func modifyGroupMembers(groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String]) async throws -> Group {
+        let response: GroupResponse = try await client.request(
+            .modifyGroupMembers(groupId: groupId, playerIdsToAdd: playerIdsToAdd, playerIdsToRemove: playerIdsToRemove)
+        )
+        return response.group
     }
 
-    func subscribe(authenticationToken: AuthenticationToken, householdId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        GroupSubscribeNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    /// Set group members (replaces current membership)
+    func setGroupMembers(householdId: String, playerIds: [String]) async throws -> Group {
+        let response: GroupResponse = try await client.request(
+            .setGroupMembers(householdId: householdId, playerIds: playerIds)
+        )
+        return response.group
     }
 
-    func unsubscribe(authenticationToken: AuthenticationToken, householdId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        GroupUnsubscribeNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    /// Subscribe to group change events
+    func subscribe(householdId: String) async throws {
+        try await client.request(.subscribeToGroups(householdId: householdId))
     }
 
-    fileprivate func decode(_ data: Any) -> ([Group], [Player]) {
-        let json = JSON(data)
-        var groups = [Group]()
-        for group in json["groups"].arrayValue {
-            if let group = Group(group) {
-                groups.append(group)
-            }
-        }
-    
-        var players = [Player]()
-        for player in json["players"].arrayValue {
-            if let player = Player(player) {
-                players.append(player)
-            }
-        }
-
-        return (groups, players)
+    /// Unsubscribe from group change events
+    func unsubscribe(householdId: String) async throws {
+        try await client.request(.unsubscribeFromGroups(householdId: householdId))
     }
-
-    fileprivate func decodeGroupMembers(_ data: Any) -> [Player] {
-        let json = JSON(data)
-        var players = [Player]()
-        for player in json["players"].arrayValue {
-            if let player = Player(player) {
-                players.append(player)
-            }
-        }
-        return players
-    }
-
-    fileprivate func decodeGroups(_ data: Any) -> Group? {
-        let json = JSON(data)
-        return Group(json["group"].dictionaryValue)
-    }
-
 }

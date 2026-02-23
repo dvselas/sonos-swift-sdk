@@ -6,11 +6,10 @@
 //
 
 import Foundation
-import SwiftyJSON
 
 // MARK: - Base Event Protocol
 
-public protocol SubscriptionEvent {
+public protocol SubscriptionEvent: Sendable {
     var namespace: String { get }
     var type: String { get }
 }
@@ -28,65 +27,21 @@ public enum PlaybackEvent: SubscriptionEvent {
         case .errorOccurred: return "playbackError"
         }
     }
-
-    init?(from json: JSON) {
-        guard let type = json["type"].string else { return nil }
-
-        switch type {
-        case "playbackStatus":
-            guard let event = PlaybackStateChangedEvent(json) else { return nil }
-            self = .stateChanged(event)
-        case "playbackError":
-            guard let event = PlaybackErrorEvent(json) else { return nil }
-            self = .errorOccurred(event)
-        default:
-            return nil
-        }
-    }
 }
 
-public struct PlaybackStateChangedEvent {
+public struct PlaybackStateChangedEvent: Codable, Sendable {
     public let groupId: String
     public let playbackState: String
     public let positionMillis: UInt?
     public let itemId: String?
     public let queueVersion: String?
     public let isDucking: Bool?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let groupId = json["groupId"].string,
-              let playbackState = json["playbackState"].string else {
-            return nil
-        }
-
-        self.groupId = groupId
-        self.playbackState = playbackState
-        self.positionMillis = json["positionMillis"].uInt
-        self.itemId = json["itemId"].string
-        self.queueVersion = json["queueVersion"].string
-        self.isDucking = json["isDucking"].bool
-        self.timestamp = Date()
-    }
 }
 
-public struct PlaybackErrorEvent {
+public struct PlaybackErrorEvent: Codable, Sendable {
     public let groupId: String
     public let errorCode: String
     public let reason: String?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let groupId = json["groupId"].string,
-              let errorCode = json["errorCode"].string else {
-            return nil
-        }
-
-        self.groupId = groupId
-        self.errorCode = errorCode
-        self.reason = json["reason"].string
-        self.timestamp = Date()
-    }
 }
 
 // MARK: - Metadata Events
@@ -96,62 +51,39 @@ public enum MetadataEvent: SubscriptionEvent {
 
     public var namespace: String { "playbackMetadata" }
     public var type: String { "metadataStatus" }
-
-    init?(from json: JSON) {
-        guard let event = MetadataChangedEvent(json) else { return nil }
-        self = .changed(event)
-    }
 }
 
-public struct MetadataChangedEvent {
+public struct MetadataChangedEvent: Codable, Sendable {
     public let groupId: String
-    public let currentItem: PlaybackMetadataItem?
-    public let nextItem: PlaybackMetadataItem?
-    public let container: PlaybackMetadataContainer?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let groupId = json["groupId"].string else { return nil }
-
-        self.groupId = groupId
-        self.currentItem = PlaybackMetadataItem(json["currentItem"])
-        self.nextItem = PlaybackMetadataItem(json["nextItem"])
-        self.container = PlaybackMetadataContainer(json["container"])
-        self.timestamp = Date()
-    }
+    public let currentItem: MetadataItem?
+    public let nextItem: MetadataItem?
+    public let container: MetadataContainer?
 }
 
-public struct PlaybackMetadataItem {
-    public let trackName: String?
-    public let artistName: String?
-    public let albumName: String?
+public struct MetadataItem: Codable, Sendable {
+    public let track: MetadataTrack?
+}
+
+public struct MetadataTrack: Codable, Sendable {
+    public let name: String?
+    public let artist: MetadataArtist?
+    public let album: MetadataAlbum?
     public let imageUrl: String?
     public let durationMillis: Int64?
-
-    init?(_ json: JSON) {
-        guard json.exists() else { return nil }
-
-        let track = json["track"]
-        self.trackName = track["name"].string
-        self.artistName = track["artist"]["name"].string
-        self.albumName = track["album"]["name"].string
-        self.imageUrl = track["imageUrl"].string
-        self.durationMillis = track["durationMillis"].int64
-    }
 }
 
-public struct PlaybackMetadataContainer {
+public struct MetadataArtist: Codable, Sendable {
+    public let name: String?
+}
+
+public struct MetadataAlbum: Codable, Sendable {
+    public let name: String?
+}
+
+public struct MetadataContainer: Codable, Sendable {
     public let name: String?
     public let type: String?
     public let imageUrl: String?
-
-    init?(_ json: JSON) {
-        guard json.exists() else { return nil }
-
-        self.name = json["name"].string
-        self.type = json["type"].string
-        self.imageUrl = json["imageUrl"].string
-    }
 }
 
 // MARK: - Volume Events
@@ -161,11 +93,6 @@ public enum GroupVolumeEvent: SubscriptionEvent {
 
     public var namespace: String { "groupVolume" }
     public var type: String { "volumeChange" }
-
-    init?(from json: JSON) {
-        guard let event = VolumeChangedEvent(json, isGroup: true) else { return nil }
-        self = .changed(event)
-    }
 }
 
 public enum PlayerVolumeEvent: SubscriptionEvent {
@@ -173,35 +100,47 @@ public enum PlayerVolumeEvent: SubscriptionEvent {
 
     public var namespace: String { "playerVolume" }
     public var type: String { "volumeChange" }
-
-    init?(from json: JSON) {
-        guard let event = VolumeChangedEvent(json, isGroup: false) else { return nil }
-        self = .changed(event)
-    }
 }
 
-public struct VolumeChangedEvent {
-    public let id: String // groupId or playerId
+public struct VolumeChangedEvent: Codable, Sendable {
+    public let id: String
     public let volume: Int
     public let muted: Bool
     public let fixed: Bool
-    public let timestamp: Date
     public let isGroup: Bool
 
-    init?(_ json: JSON, isGroup: Bool) {
-        let id = isGroup ? json["groupId"].string : json["playerId"].string
-        guard let validId = id,
-              let volume = json["volume"].int,
-              let muted = json["muted"].bool else {
-            return nil
-        }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.volume = try container.decode(Int.self, forKey: .volume)
+        self.muted = try container.decode(Bool.self, forKey: .muted)
+        self.fixed = (try? container.decode(Bool.self, forKey: .fixed)) ?? false
 
-        self.id = validId
-        self.volume = volume
-        self.muted = muted
-        self.fixed = json["fixed"].bool ?? false
-        self.timestamp = Date()
-        self.isGroup = isGroup
+        // Try groupId first, then playerId
+        if let groupId = try? container.decode(String.self, forKey: .groupId) {
+            self.id = groupId
+            self.isGroup = true
+        } else if let playerId = try? container.decode(String.self, forKey: .playerId) {
+            self.id = playerId
+            self.isGroup = false
+        } else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Missing groupId or playerId"))
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case groupId, playerId, volume, muted, fixed
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(volume, forKey: .volume)
+        try container.encode(muted, forKey: .muted)
+        try container.encode(fixed, forKey: .fixed)
+        if isGroup {
+            try container.encode(id, forKey: .groupId)
+        } else {
+            try container.encode(id, forKey: .playerId)
+        }
     }
 }
 
@@ -218,63 +157,23 @@ public enum GroupEvent: SubscriptionEvent {
         case .coordinatorChanged: return "groupCoordinatorChanged"
         }
     }
-
-    init?(from json: JSON) {
-        guard let type = json["type"].string else { return nil }
-
-        switch type {
-        case "groupChange":
-            guard let event = GroupChangedEvent(json) else { return nil }
-            self = .changed(event)
-        case "groupCoordinatorChanged":
-            guard let event = GroupCoordinatorChangedEvent(json) else { return nil }
-            self = .coordinatorChanged(event)
-        default:
-            return nil
-        }
-    }
 }
 
-public struct GroupChangedEvent {
+public struct GroupChangedEvent: Codable, Sendable {
     public let groupId: String
-    public let changeType: String // "CREATED", "UPDATED", "DELETED"
+    public let groupStatus: String
     public let playerIds: [String]?
     public let coordinatorId: String?
     public let name: String?
-    public let timestamp: Date
 
-    init?(_ json: JSON) {
-        guard let groupId = json["groupId"].string,
-              let changeType = json["groupStatus"].string else {
-            return nil
-        }
-
-        self.groupId = groupId
-        self.changeType = changeType
-        self.playerIds = json["playerIds"].array?.compactMap { $0.string }
-        self.coordinatorId = json["coordinatorId"].string
-        self.name = json["name"].string
-        self.timestamp = Date()
-    }
+    /// Alias for backward compatibility
+    public var changeType: String { groupStatus }
 }
 
-public struct GroupCoordinatorChangedEvent {
+public struct GroupCoordinatorChangedEvent: Codable, Sendable {
     public let groupId: String
     public let coordinatorId: String
     public let previousCoordinatorId: String?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let groupId = json["groupId"].string,
-              let coordinatorId = json["coordinatorId"].string else {
-            return nil
-        }
-
-        self.groupId = groupId
-        self.coordinatorId = coordinatorId
-        self.previousCoordinatorId = json["previousCoordinatorId"].string
-        self.timestamp = Date()
-    }
 }
 
 // MARK: - Favorites Events
@@ -284,28 +183,11 @@ public enum FavoritesEvent: SubscriptionEvent {
 
     public var namespace: String { "favorites" }
     public var type: String { "favoritesChange" }
-
-    init?(from json: JSON) {
-        guard let event = FavoritesChangedEvent(json) else { return nil }
-        self = .changed(event)
-    }
 }
 
-public struct FavoritesChangedEvent {
+public struct FavoritesChangedEvent: Codable, Sendable {
     public let householdId: String
     public let version: String
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let householdId = json["householdId"].string,
-              let version = json["version"].string else {
-            return nil
-        }
-
-        self.householdId = householdId
-        self.version = version
-        self.timestamp = Date()
-    }
 }
 
 // MARK: - Playlists Events
@@ -315,28 +197,11 @@ public enum PlaylistsEvent: SubscriptionEvent {
 
     public var namespace: String { "playlists" }
     public var type: String { "playlistsChange" }
-
-    init?(from json: JSON) {
-        guard let event = PlaylistsChangedEvent(json) else { return nil }
-        self = .changed(event)
-    }
 }
 
-public struct PlaylistsChangedEvent {
+public struct PlaylistsChangedEvent: Codable, Sendable {
     public let householdId: String
     public let version: String
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let householdId = json["householdId"].string,
-              let version = json["version"].string else {
-            return nil
-        }
-
-        self.householdId = householdId
-        self.version = version
-        self.timestamp = Date()
-    }
 }
 
 // MARK: - AudioClip Events
@@ -346,32 +211,13 @@ public enum AudioClipEvent: SubscriptionEvent {
 
     public var namespace: String { "audioClip" }
     public var type: String { "audioClipStatus" }
-
-    init?(from json: JSON) {
-        guard let event = AudioClipStatusEvent(json) else { return nil }
-        self = .statusChanged(event)
-    }
 }
 
-public struct AudioClipStatusEvent {
+public struct AudioClipStatusEvent: Codable, Sendable {
     public let playerId: String
-    public let status: String // "ACTIVE", "DONE", "ERROR", "INTERRUPTED"
+    public let status: String
     public let clipId: String?
     public let errorCode: String?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let playerId = json["playerId"].string,
-              let status = json["status"].string else {
-            return nil
-        }
-
-        self.playerId = playerId
-        self.status = status
-        self.clipId = json["clipId"].string
-        self.errorCode = json["errorCode"].string
-        self.timestamp = Date()
-    }
 }
 
 // MARK: - Playback Session Events
@@ -387,86 +233,113 @@ public enum PlaybackSessionEvent: SubscriptionEvent {
         case .sessionError: return "sessionError"
         }
     }
-
-    init?(from json: JSON) {
-        guard let type = json["type"].string else { return nil }
-
-        switch type {
-        case "sessionEvicted":
-            guard let event = SessionEvictedEvent(json) else { return nil }
-            self = .sessionEvicted(event)
-        case "sessionError":
-            guard let event = SessionErrorEvent(json) else { return nil }
-            self = .sessionError(event)
-        default:
-            return nil
-        }
-    }
 }
 
-public struct SessionEvictedEvent {
+public struct SessionEvictedEvent: Codable, Sendable {
     public let sessionId: String
     public let reason: String?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let sessionId = json["sessionId"].string else {
-            return nil
-        }
-
-        self.sessionId = sessionId
-        self.reason = json["reason"].string
-        self.timestamp = Date()
-    }
 }
 
-public struct SessionErrorEvent {
+public struct SessionErrorEvent: Codable, Sendable {
     public let sessionId: String
     public let errorCode: String
     public let reason: String?
-    public let timestamp: Date
-
-    init?(_ json: JSON) {
-        guard let sessionId = json["sessionId"].string,
-              let errorCode = json["errorCode"].string else {
-            return nil
-        }
-
-        self.sessionId = sessionId
-        self.errorCode = errorCode
-        self.reason = json["reason"].string
-        self.timestamp = Date()
-    }
 }
 
 // MARK: - Event Parser
 
-public class SubscriptionEventParser {
+public final class SubscriptionEventParser {
+
+    private static let decoder = JSONDecoder()
 
     public static func parse(message: WebSocketMessage) -> (any SubscriptionEvent)? {
-        let json = JSON(message.data)
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: message.data) else {
+            return nil
+        }
 
         switch message.namespace {
         case "playback":
-            return PlaybackEvent(from: json)
+            return parsePlaybackEvent(from: jsonData, type: message.type)
         case "playbackMetadata":
-            return MetadataEvent(from: json)
+            if let event = try? decoder.decode(MetadataChangedEvent.self, from: jsonData) {
+                return MetadataEvent.changed(event)
+            }
         case "groupVolume":
-            return GroupVolumeEvent(from: json)
+            if let event = try? decoder.decode(VolumeChangedEvent.self, from: jsonData) {
+                return GroupVolumeEvent.changed(event)
+            }
         case "playerVolume":
-            return PlayerVolumeEvent(from: json)
+            if let event = try? decoder.decode(VolumeChangedEvent.self, from: jsonData) {
+                return PlayerVolumeEvent.changed(event)
+            }
         case "groups":
-            return GroupEvent(from: json)
+            return parseGroupEvent(from: jsonData, type: message.type)
         case "favorites":
-            return FavoritesEvent(from: json)
+            if let event = try? decoder.decode(FavoritesChangedEvent.self, from: jsonData) {
+                return FavoritesEvent.changed(event)
+            }
         case "playlists":
-            return PlaylistsEvent(from: json)
+            if let event = try? decoder.decode(PlaylistsChangedEvent.self, from: jsonData) {
+                return PlaylistsEvent.changed(event)
+            }
         case "audioClip":
-            return AudioClipEvent(from: json)
+            if let event = try? decoder.decode(AudioClipStatusEvent.self, from: jsonData) {
+                return AudioClipEvent.statusChanged(event)
+            }
         case "playbackSession":
-            return PlaybackSessionEvent(from: json)
+            return parsePlaybackSessionEvent(from: jsonData, type: message.type)
         default:
-            return nil
+            break
         }
+
+        return nil
+    }
+
+    private static func parsePlaybackEvent(from data: Data, type: String) -> PlaybackEvent? {
+        switch type {
+        case "playbackStatus":
+            if let event = try? decoder.decode(PlaybackStateChangedEvent.self, from: data) {
+                return .stateChanged(event)
+            }
+        case "playbackError":
+            if let event = try? decoder.decode(PlaybackErrorEvent.self, from: data) {
+                return .errorOccurred(event)
+            }
+        default:
+            break
+        }
+        return nil
+    }
+
+    private static func parseGroupEvent(from data: Data, type: String) -> GroupEvent? {
+        switch type {
+        case "groupChange":
+            if let event = try? decoder.decode(GroupChangedEvent.self, from: data) {
+                return .changed(event)
+            }
+        case "groupCoordinatorChanged":
+            if let event = try? decoder.decode(GroupCoordinatorChangedEvent.self, from: data) {
+                return .coordinatorChanged(event)
+            }
+        default:
+            break
+        }
+        return nil
+    }
+
+    private static func parsePlaybackSessionEvent(from data: Data, type: String) -> PlaybackSessionEvent? {
+        switch type {
+        case "sessionEvicted":
+            if let event = try? decoder.decode(SessionEvictedEvent.self, from: data) {
+                return .sessionEvicted(event)
+            }
+        case "sessionError":
+            if let event = try? decoder.decode(SessionErrorEvent.self, from: data) {
+                return .sessionError(event)
+            }
+        default:
+            break
+        }
+        return nil
     }
 }

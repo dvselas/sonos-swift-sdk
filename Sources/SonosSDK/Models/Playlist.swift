@@ -6,29 +6,18 @@
 //
 
 import Foundation
-import SwiftyJSON
 
-public struct Playlist: Identifiable, Hashable {
+public struct Playlist: Codable, Identifiable, Hashable, Sendable {
 
-    public var id: String
-    public var name: String
-    public var type: String
-    public var trackCount: Int?
-    public var imageUrl: String?
+    public let id: String
+    public let name: String
+    public let type: String
+    public let trackCount: Int?
+    public let imageUrl: String?
+}
 
-    init?(_ data: Any) {
-        let json = JSON(data)
-
-        guard let id = json["id"].string,
-              let name = json["name"].string,
-              let type = json["type"].string else {
-            return nil
-        }
-
-        self.id = id
-        self.name = name
-        self.type = type
-        self.trackCount = json["trackCount"].int
-        self.imageUrl = json["imageUrl"].string
-    }
+/// Response wrapper for getPlaylists
+struct PlaylistsResponse: Codable {
+    let playlists: [Playlist]
+    let version: String?
 }

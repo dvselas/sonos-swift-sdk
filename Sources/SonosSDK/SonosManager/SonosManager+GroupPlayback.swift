@@ -1,95 +1,79 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 3/11/21.
+//  SonosManager+GroupPlayback.swift
+//  SonosSDK
 //
 
 import Foundation
 
 extension SonosManager {
 
-    public func getGroupPlaybackStatus(groupId: String, success: @escaping (PlaybackStatus) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
+    /// Get playback status with automatic caching
+    public func getGroupPlaybackStatus(groupId: String, useCache: Bool = true) async throws -> PlaybackStatus {
+        if useCache, let cached = stateCache.getPlaybackStatus(for: groupId) {
+            return cached
         }
 
-        groupPlaybackService.getGroupPlaybackStatus(authenticationToken: authenticationToken, groupId: groupId, success: { playbackStatus in
-            success(playbackStatus)
-        }, failure: failure)
+        let status = try await groupPlaybackService.getPlaybackStatus(groupId: groupId)
+        let ttl = TimeInterval(status.availablePlaybackActions.playTtlSec > 0 ? status.availablePlaybackActions.playTtlSec : 5)
+        stateCache.setPlaybackStatus(status, for: groupId, ttl: ttl)
+        return status
     }
-    
-    public func setGroupPlaybackPlay(groupId: String, success: @escaping (Data) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-        
-        groupPlaybackService.setGroupPlaybackPlay(authenticationToken: authenticationToken, groupId: groupId, success: { data in
-            success(data)
-        }, failure: failure)
+
+    public func play(groupId: String) async throws {
+        try await groupPlaybackService.play(groupId: groupId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
     }
-    
-    public func setGroupPlaybackPause(groupId: String, success: @escaping (Data) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-        
-        groupPlaybackService.setGroupPlaybackPause(authenticationToken: authenticationToken, groupId: groupId, success: { data in
-            success(data)
-        }, failure: failure)
+
+    public func pause(groupId: String) async throws {
+        try await groupPlaybackService.pause(groupId: groupId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
     }
-    
-    public func setGroupSkipToNext(groupId: String, success: @escaping (Data) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-        
-        groupPlaybackService.setGroupSkipToNext(authenticationToken: authenticationToken, groupId: groupId, success: { data in
-            success(data)
-        }, failure: failure)
+
+    public func togglePlayPause(groupId: String) async throws {
+        try await groupPlaybackService.togglePlayPause(groupId: groupId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
     }
-    
-    public func setGroupSkipToSeek(groupId: String, positionMillis: UInt, success: @escaping (Data) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-        
-        groupPlaybackService.setGroupSkipToSeek(authenticationToken: authenticationToken, groupId: groupId, positionMillis: positionMillis, success: { data in
-            success(data)
-        }, failure: failure)
+
+    public func skipToNextTrack(groupId: String) async throws {
+        try await groupPlaybackService.skipToNextTrack(groupId: groupId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+        stateCache.invalidatePlaybackMetadata(for: groupId)
     }
-    
-    public func setGroupSkipToPrevious(groupId: String, success: @escaping (Data) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-        
-        groupPlaybackService.setGroupSkipToPrevious(authenticationToken: authenticationToken, groupId: groupId, success: { data in
-            success(data)
-        }, failure: failure)
+
+    public func skipToPreviousTrack(groupId: String) async throws {
+        try await groupPlaybackService.skipToPreviousTrack(groupId: groupId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+        stateCache.invalidatePlaybackMetadata(for: groupId)
     }
-    
-    public func setGroupPlaybackModes(groupId: String, playModes: [String], success: @escaping (Data) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-        
-        groupPlaybackService.setGroupPlaybackModes(authenticationToken: authenticationToken, groupId: groupId, playModes: playModes, success: { data in
-            success(data)
-        }, failure: failure)
+
+    public func seek(groupId: String, positionMillis: UInt) async throws {
+        try await groupPlaybackService.seek(groupId: groupId, positionMillis: positionMillis)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+    }
+
+    public func seekRelative(groupId: String, deltaMillis: Int, itemId: String? = nil) async throws {
+        try await groupPlaybackService.seekRelative(groupId: groupId, deltaMillis: deltaMillis, itemId: itemId)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+    }
+
+    public func setPlayModes(groupId: String, playModes: PlayModesBody) async throws {
+        try await groupPlaybackService.setPlayModes(groupId: groupId, playModes: playModes)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+    }
+
+    public func loadLineIn(groupId: String, deviceId: String? = nil, playOnCompletion: Bool? = nil) async throws {
+        try await groupPlaybackService.loadLineIn(groupId: groupId, deviceId: deviceId, playOnCompletion: playOnCompletion)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+        stateCache.invalidatePlaybackMetadata(for: groupId)
+    }
+
+    /// Subscribe to playback events
+    public func subscribeToPlayback(groupId: String) async throws {
+        try await groupPlaybackService.subscribe(groupId: groupId)
+    }
+
+    /// Unsubscribe from playback events
+    public func unsubscribeFromPlayback(groupId: String) async throws {
+        try await groupPlaybackService.unsubscribe(groupId: groupId)
     }
 }

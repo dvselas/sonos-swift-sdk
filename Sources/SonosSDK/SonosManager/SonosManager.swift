@@ -1,133 +1,117 @@
 //
-//  File.swift
-//  
+//  SonosManager.swift
+//  SonosSDK
 //
 //  Created by James Hickman on 2/5/21.
 //
 
 import Foundation
 import SwiftUI
-import Swinject
+import Combine
 
 public class SonosManager: ObservableObject {
-    
-    // MARK: - Public Vars
-    
+
+    // MARK: - Public Properties
+
     @Published public var isAuthenticated: Bool = false
 
+    /// The token manager for OAuth operations
+    public let tokenManager: TokenManager
+
+    /// The HTTP client used for API requests
+    public let httpClient: HTTPClientProtocol
+
+    /// Subscription coordinator for WebSocket events
+    public lazy var subscriptionCoordinator: SubscriptionCoordinator = {
+        SubscriptionCoordinator()
+    }()
+
+    /// State cache for API responses
+    public let stateCache = StateCacheManager.shared
+
+    /// The client credentials
+    let client: Client
+
+    /// Authorization URL for OAuth flow
     public var authorizationUrl: URL? {
-        let urlString = "https://api.sonos.com/login/v3/oauth?client_id=\(client.key)&response_type=code&state=state_test&scope=playback-control-all&redirect_uri=\(client.redirectURI)"
-        return URL(string: urlString)
-    }
-
-    // MARK: - Init
-    
-    public init(keyName: String, key: String, secret: String, redirectURI: String, callbackURL: String) {
-        self.client = Client(keyName: keyName, key: key, secret: secret, redirectURI: redirectURI, callbackURL: callbackURL)
-        configureDependencies()
-    }
-
-    // MARK: - Public Functions
-                    
-    // MARK: - Internal Vars
-
-    let container = ConfigurationProvider.shared.container
-
-    var client: Client
-
-    var authenticationToken: AuthenticationToken? {
-        didSet {
-            isAuthenticated = !(authenticationToken?.isExpired ?? true)
+        get async {
+            await tokenManager.authorizationURL()
         }
     }
 
-    var encodedClientKey: String? {
-        let encodedKeys = (client.key + ":" + client.secret).base64encoded
-        return encodedKeys
+    /// Synchronous authorization URL (for backward compatibility with SwiftUI views)
+    public var authorizationUrlSync: URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.sonos.com"
+        components.path = "/login/v3/oauth"
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: client.key),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "state", value: "sonos_auth"),
+            URLQueryItem(name: "scope", value: "playback-control-all"),
+            URLQueryItem(name: "redirect_uri", value: client.redirectURI)
+        ]
+        return components.url
     }
 
-    // MARK: Services
-    
-    lazy var authenticationTokenService: AuthenticationTokenService = {
-        return AuthenticationTokenService()
-    }()
+    // MARK: - Services (internal)
 
-    lazy var authenticationRefreshTokenService: AuthenticationRefreshTokenService = {
-        return AuthenticationRefreshTokenService()
-    }()
+    lazy var householdService = HouseholdService(client: httpClient)
+    lazy var groupService = GroupService(client: httpClient)
+    lazy var groupPlaybackService = GroupPlaybackService(client: httpClient)
+    lazy var groupMetadataService = GroupMetadataService(client: httpClient)
+    lazy var groupVolumeService = GroupVolumeService(client: httpClient)
+    lazy var playerService = PlayerService(client: httpClient)
+    lazy var playerVolumeService = PlayerVolumeService(client: httpClient)
+    lazy var homeTheaterService = HomeTheaterService(client: httpClient)
+    lazy var playerSettingsService = PlayerSettingsService(client: httpClient)
+    lazy var audioClipService = AudioClipService(client: httpClient)
+    lazy var favoriteService = FavoriteService(client: httpClient)
+    lazy var playbackSessionService = PlaybackSessionService(client: httpClient)
+    lazy var playlistService = PlaylistService(client: httpClient)
+    lazy var musicServiceAccountsService = MusicServiceAccountsService(client: httpClient)
+    lazy var authService = AuthService(tokenManager: tokenManager)
 
-    lazy var householdService: HouseholdService = {
-        return HouseholdService()
-    }()
+    // MARK: - Initialization
 
-    lazy var groupService: GroupService = {
-        return GroupService()
-    }()
+    public init(keyName: String, key: String, secret: String, redirectURI: String, callbackURL: String) {
+        self.client = Client(keyName: keyName, key: key, secret: secret, redirectURI: redirectURI, callbackURL: callbackURL)
 
-    lazy var groupPlaybackService: GroupPlaybackService = {
-        return GroupPlaybackService()
-    }()
+        let tokenMgr = TokenManager(clientKey: key, clientSecret: secret, redirectURI: redirectURI)
+        self.tokenManager = tokenMgr
+        self.httpClient = SonosHTTPClient(tokenManager: tokenMgr)
 
-    lazy var groupMetadataService: GroupMetadataService = {
-        return GroupMetadataService()
-    }()
-    
-    lazy var groupVolumeService: GroupVolumeService = {
-        return GroupVolumeService()
-    }()
+        // Sync initial auth state
+        Task { [weak self] in
+            let authenticated = await tokenMgr.isAuthenticated
+            await MainActor.run {
+                self?.isAuthenticated = authenticated
+            }
+        }
 
-    lazy var playerService: PlayerService = {
-        return PlayerService()
-    }()
-
-    lazy var playerVolumeService: PlayerVolumeService = {
-        return PlayerVolumeService()
-    }()
-
-    lazy var homeTheaterService: HomeTheaterService = {
-        return HomeTheaterService()
-    }()
-
-    lazy var playerSettingsService: PlayerSettingsService = {
-        return PlayerSettingsService()
-    }()
-
-    lazy var audioClipService: AudioClipService = {
-        return AudioClipService()
-    }()
-
-    lazy var favoriteService: FavoriteService = {
-        return FavoriteService()
-    }()
-
-    lazy var playbackSessionService: PlaybackSessionService = {
-        return PlaybackSessionService()
-    }()
-
-    lazy var playlistService: PlaylistService = {
-        return PlaylistService()
-    }()
-
-    lazy var musicServiceAccountsService: MusicServiceAccountsService = {
-        return MusicServiceAccountsService()
-    }()
-
-    // MARK: Subscription and Cache Services
-
-    public lazy var subscriptionCoordinator: SubscriptionCoordinator = {
-        return SubscriptionCoordinator()
-    }()
-
-    public var stateCache: StateCacheManager {
-        return StateCacheManager.shared
+        // Listen for auth state changes
+        Task { [weak self] in
+            await tokenMgr.setOnAuthenticationChanged { isAuth in
+                Task { @MainActor in
+                    self?.isAuthenticated = isAuth
+                }
+            }
+        }
     }
 
-    // MARK: Internal Functions
-
-    func configureDependencies() {
-        let container = ConfigurationProvider.shared.container
-
-        container.register(SonosManager.self) { _ in self }
+    /// Initialize with custom HTTP client (for testing)
+    public init(client: Client, httpClient: HTTPClientProtocol, tokenManager: TokenManager) {
+        self.client = client
+        self.httpClient = httpClient
+        self.tokenManager = tokenManager
     }
+}
 
+// MARK: - TokenManager helper for setting callback
+
+extension TokenManager {
+    func setOnAuthenticationChanged(_ callback: @escaping @Sendable (Bool) -> Void) {
+        self.onAuthenticationChanged = callback
+    }
 }

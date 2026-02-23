@@ -1,45 +1,43 @@
 //
-//  File.swift
-//  
+//  AuthenticationToken.swift
+//  SonosSDK
 //
 //  Created by James Hickman on 2/7/21.
 //
 
 import Foundation
-import SwiftyJSON
 
-public struct AuthenticationToken: Codable {
+public struct AuthenticationToken: Codable, Sendable {
 
-    var access_token: String
-    var token_type: String
-    var refresh_token: String
-    var expires_in: Int
-    var scope: String
-    var expireDate: Date
+    public let accessToken: String
+    public let tokenType: String
+    public let refreshToken: String
+    public let expiresIn: Int
+    public let scope: String
+    public let expireDate: Date
 
-    var isExpired: Bool {
-        return expireDate < Date()
+    public var isExpired: Bool {
+        expireDate < Date()
     }
-    
-    init?(_ data: Any) {
-        
-        let json = JSON(data)
-        guard let access_token = json["access_token"].string,
-              let expires_in = json["expires_in"].int,
-              let refresh_token = json["refresh_token"].string,
-              let scope = json["scope"].string,
-              let token_type = json["token_type"].string else {
-            return nil
-        }
-        self.access_token = access_token
-        self.expires_in = expires_in
-        self.expireDate = Date(timeIntervalSinceNow: TimeInterval(expires_in))
-        self.refresh_token = refresh_token
-        self.scope = scope
-        self.token_type = token_type
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case tokenType = "token_type"
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
+        case scope
+        case expireDate
     }
-    
-    public func getAccessToken() -> String {
-        return self.access_token
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.accessToken = try container.decode(String.self, forKey: .accessToken)
+        self.tokenType = try container.decode(String.self, forKey: .tokenType)
+        self.refreshToken = try container.decode(String.self, forKey: .refreshToken)
+        self.expiresIn = try container.decode(Int.self, forKey: .expiresIn)
+        self.scope = try container.decode(String.self, forKey: .scope)
+        // If expireDate is stored, use it; otherwise compute from expiresIn
+        self.expireDate = (try? container.decode(Date.self, forKey: .expireDate))
+            ?? Date(timeIntervalSinceNow: TimeInterval(self.expiresIn))
     }
 }

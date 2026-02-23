@@ -1,25 +1,30 @@
 //
-//  File.swift
-//  
-//
-//  Created by von Selasinsky, Deno on 13.11.23.
+//  SonosManager+GroupMetadata.swift
+//  SonosSDK
 //
 
 import Foundation
 
 extension SonosManager {
 
-    public func getGroupMetadataStatus(groupId: String, success: @escaping (PlaybackMetadata) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
+    /// Get playback metadata with automatic caching
+    public func getGroupPlaybackMetadata(groupId: String, useCache: Bool = true) async throws -> PlaybackMetadata {
+        if useCache, let cached = stateCache.getPlaybackMetadata(for: groupId) {
+            return cached
         }
 
-        groupMetadataService.getGroupPlaybackMetadata(authenticationToken: authenticationToken, groupId: groupId, success: { playbackMetadata in
-            success(playbackMetadata)
-        }, failure: failure)
-        
+        let metadata = try await groupMetadataService.getMetadataStatus(groupId: groupId)
+        stateCache.setPlaybackMetadata(metadata, for: groupId)
+        return metadata
     }
-    
+
+    /// Subscribe to metadata change events
+    public func subscribeToPlaybackMetadata(groupId: String) async throws {
+        try await groupMetadataService.subscribe(groupId: groupId)
+    }
+
+    /// Unsubscribe from metadata change events
+    public func unsubscribeFromPlaybackMetadata(groupId: String) async throws {
+        try await groupMetadataService.unsubscribe(groupId: groupId)
+    }
 }

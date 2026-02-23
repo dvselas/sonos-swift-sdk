@@ -1,23 +1,24 @@
 //
-//  File.swift
-//  
+//  Authorization.swift
+//  SonosSDK
 //
 //  Created by James Hickman on 2/7/21.
 //
 
 import Foundation
 
-struct Authorization: Codable {
-    
-    var state: String
-    var code: String
+struct Authorization: Codable, Sendable {
+
+    let state: String
+    let code: String
 
     init?(fromURL url: URL) {
-        guard let state = url["state"], // TODO: Verify state response matches request
-              let code = url["code"] else { return nil }
-        print("Code: \(code)")
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let state = components.queryItems?.first(where: { $0.name == "state" })?.value,
+              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+            return nil
+        }
         self.state = state
         self.code = code
     }
-
 }

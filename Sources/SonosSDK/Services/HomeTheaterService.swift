@@ -1,51 +1,33 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/22/21.
+//  HomeTheaterService.swift
+//  SonosSDK
 //
 
 import Foundation
-import SonosNetworking
 
 struct HomeTheaterService {
-            
-    func getOptions(authenticationToken: AuthenticationToken, playerId: String, success: @escaping (HomeTheaterOptions) -> (), failure: @escaping (Error?) -> ()) {
-        HomeTheaterGetOptionsNetwork(accessToken: authenticationToken.access_token, playerId: playerId) { data in
-            guard let data = data,
-                  let homeTheaterOptions = HomeTheaterOptions(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create HomeTheaterOptions object.")
-                failure(error)
-                return
-            }
-            success(homeTheaterOptions)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
-    }
-    
-    func setNightMode(authenticationToken: AuthenticationToken, playerId: String, enabled: Bool, success: @escaping (Error?) -> (), failure: @escaping (Error?) -> ()) {
-        HomeTheaterSetOptionsNetwork(accessToken: authenticationToken.access_token, playerId: playerId, nightMode: enabled) { data in
-            if let data = data, let responseError = NSError.errorWithData(data: data) {
-                success(responseError)
-            } else {
-                success(nil)
-            }
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+
+    private let client: HTTPClientProtocol
+
+    init(client: HTTPClientProtocol) {
+        self.client = client
     }
 
-    func setEnhanceDialog(authenticationToken: AuthenticationToken, playerId: String, enabled: Bool, success: @escaping (Error?) -> (), failure: @escaping (Error?) -> ()) {
-        HomeTheaterSetOptionsNetwork(accessToken: authenticationToken.access_token, playerId: playerId, enhanceDialog: enabled) { data in
-            if let data = data, let responseError = NSError.errorWithData(data: data) {
-                success(responseError)
-            } else {
-                success(nil)
-            }
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func getOptions(playerId: String) async throws -> HomeTheaterOptions {
+        try await client.request(.getHomeTheaterOptions(playerId: playerId))
     }
 
+    func setOptions(playerId: String, nightMode: Bool? = nil, enhanceDialog: Bool? = nil) async throws {
+        try await client.request(.setHomeTheaterOptions(playerId: playerId, nightMode: nightMode, enhanceDialog: enhanceDialog))
+    }
+
+    /// Load home theater playback (switch to TV input)
+    func loadHomeTheaterPlayback(playerId: String) async throws {
+        try await client.request(.loadHomeTheaterPlayback(playerId: playerId))
+    }
+
+    /// Set TV power state ("on" or "standby")
+    func setTvPowerState(playerId: String, powerState: String) async throws {
+        try await client.request(.setTvPowerState(playerId: playerId, powerState: powerState))
+    }
 }

@@ -1,54 +1,56 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/8/21.
+//  AuthorizationView.swift
+//  SonosSDK
 //
 
 import SwiftUI
 import BetterSafariView
-import Swinject
 
 struct AuthorizationView: ViewModifier {
     @Binding var isPresented: Bool
     var url: URL
-    var completion: (Bool) -> Void
+    var callbackURLScheme: String
+    var sonosManager: SonosManager
 
     func body(content: Content) -> some View {
         content
         .webAuthenticationSession(isPresented: $isPresented) {
             WebAuthenticationSession(
                 url: url,
-                callbackURLScheme: "sonos-sdk-example"
+                callbackURLScheme: callbackURLScheme
             ) { callbackURL, error in
-                guard let callbackURL = callbackURL else {
-                    completion(false)
+                guard let callbackURL else {
                     return
                 }
-                if let authorization = Authorization(fromURL: callbackURL) {
-                    ConfigurationProvider.shared.container.register(Authorization.self) { _ in authorization }
-                    let sonosManager = ConfigurationProvider.shared.container.resolve(SonosManager.self)
-                    sonosManager?.getAuthenticationToken(success: { token in
-                        completion(true)
-                    }, failure: { error in
-                        completion(false)
-                    })
-                } else {
-                    completion(false)
+
+                Task {
+                    do {
+                        try await sonosManager.handleAuthRedirect(url: callbackURL)
+                    } catch {
+                        print("[AuthorizationView] Authentication failed: \(error)")
+                    }
                 }
             }
             .prefersEphemeralWebBrowserSession(false)
         }
     }
-    
 }
 
 public extension View {
-    
-    func sonosAuthorizationView(url: URL, isPresented: Binding<Bool>, completion: @escaping (Bool) -> Void) -> some View {
+
+    func sonosAuthorizationView(
+        url: URL,
+        isPresented: Binding<Bool>,
+        callbackURLScheme: String = "sonos-sdk-example",
+        sonosManager: SonosManager
+    ) -> some View {
         self.modifier(
-            AuthorizationView(isPresented: isPresented, url: url, completion: completion)
+            AuthorizationView(
+                isPresented: isPresented,
+                url: url,
+                callbackURLScheme: callbackURLScheme,
+                sonosManager: sonosManager
+            )
         )
     }
-    
 }

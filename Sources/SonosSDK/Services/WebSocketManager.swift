@@ -2,47 +2,49 @@
 //  WebSocketManager.swift
 //  SonosSDK
 //
-//  Created on 2025-01-22.
+//  Modernized with async/await and structured concurrency
 //
 
 import Foundation
 import Combine
 
-/// Manages WebSocket connections for real-time state updates from Sonos players
-public class WebSocketManager: NSObject {
+/// Manages a single WebSocket connection for real-time state updates from a Sonos player
+public class WebSocketManager: NSObject, @unchecked Sendable {
 
     // MARK: - Public Properties
 
-    /// Publisher for connection state changes
+    /// Publisher for connection state changes (Combine)
     public let connectionStatePublisher = PassthroughSubject<ConnectionState, Never>()
 
-    /// Publisher for received messages
+    /// Publisher for received messages (Combine)
     public let messagePublisher = PassthroughSubject<WebSocketMessage, Never>()
 
     /// Current connection state
     @Published public private(set) var connectionState: ConnectionState = .disconnected
 
-    // MARK: - Private Properties
-
-    private var webSocketTask: URLSessionWebSocketTask?
-    private var urlSession: URLSession?
-    private var reconnectionTimer: Timer?
-    private var pingTimer: Timer?
-    private let reconnectionDelay: TimeInterval = 3.0
-    private let pingInterval: TimeInterval = 30.0
-    private var reconnectAttempts: Int = 0
-    private let maxReconnectAttempts: Int = 5
-    private var websocketURL: URL?
-
     // MARK: - Connection State
 
-    public enum ConnectionState {
+    public enum ConnectionState: Sendable {
         case disconnected
         case connecting
         case connected
         case reconnecting(attempt: Int)
-        case failed(Error)
+        case failed(String)
     }
+
+    // MARK: - Private Properties
+
+    private var webSocketTask: URLSessionWebSocketTask?
+    private var urlSession: URLSession?
+    private var reconnectionTask: Task<Void, Never>?
+    private var receiveTask: Task<Void, Never>?
+    private var pingTask: Task<Void, Never>?
+    private var reconnectAttempts: Int = 0
+    private let maxReconnectAttempts: Int = 5
+    private let baseReconnectionDelay: TimeInterval = 2.0
+    private let pingInterval: TimeInterval = 30.0
+    private var websocketURL: URL?
+    private var accessToken: String?
 
     // MARK: - Initialization
 
@@ -56,10 +58,8 @@ public class WebSocketManager: NSObject {
 
     // MARK: - Public Methods
 
-    /// Connect to a WebSocket URL
-    /// - Parameter url: The WebSocket URL from the Player model
-    public func connect(to url: URL) {
-        // Check if already connected or connecting
+    /// Connect to a WebSocket URL with authentication
+    public func connect(to url: URL, accessToken: String? = nil) {
         switch connectionState {
         case .connected, .connecting:
             return
@@ -68,6 +68,7 @@ public class WebSocketManager: NSObject {
         }
 
         self.websocketURL = url
+        self.accessToken = accessToken
         self.reconnectAttempts = 0
         updateConnectionState(.connecting)
         establishConnection()
@@ -75,122 +76,121 @@ public class WebSocketManager: NSObject {
 
     /// Disconnect from the WebSocket
     public func disconnect() {
-        cancelReconnectionTimer()
-        cancelPingTimer()
+        reconnectionTask?.cancel()
+        reconnectionTask = nil
+        receiveTask?.cancel()
+        receiveTask = nil
+        pingTask?.cancel()
+        pingTask = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
         updateConnectionState(.disconnected)
     }
 
     /// Send a message through the WebSocket
-    /// - Parameter message: The message to send
-    public func send(_ message: String) {
-        let message = URLSessionWebSocketTask.Message.string(message)
-        webSocketTask?.send(message) { [weak self] error in
-            if let error = error {
-                print("WebSocket send error: \(error)")
-                self?.handleConnectionError(error)
-            }
+    public func send(_ message: String) async throws {
+        guard let webSocketTask else {
+            throw SonosError.webSocketError(.connectionFailed("Not connected"))
         }
+        try await webSocketTask.send(.string(message))
     }
 
     // MARK: - Private Methods
 
     private func establishConnection() {
         guard let url = websocketURL else {
-            updateConnectionState(.failed(WebSocketError.invalidURL))
+            updateConnectionState(.failed("Invalid WebSocket URL"))
             return
         }
 
-        webSocketTask = urlSession?.webSocketTask(with: url)
+        var request = URLRequest(url: url)
+        if let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        webSocketTask = urlSession?.webSocketTask(with: request)
         webSocketTask?.resume()
-        receiveMessage()
-        startPingTimer()
+        startReceiveLoop()
+        startPingLoop()
     }
 
-    private func receiveMessage() {
-        webSocketTask?.receive { [weak self] result in
-            guard let self = self else { return }
+    private func startReceiveLoop() {
+        receiveTask?.cancel()
+        receiveTask = Task { [weak self] in
+            guard let self else { return }
 
-            switch result {
-            case .success(let message):
-                self.handleReceivedMessage(message)
-                self.receiveMessage() // Continue listening
+            while !Task.isCancelled {
+                guard let webSocketTask = self.webSocketTask else { break }
 
-            case .failure(let error):
-                self.handleConnectionError(error)
+                do {
+                    let message = try await webSocketTask.receive()
+                    self.handleReceivedMessage(message)
+                } catch {
+                    if !Task.isCancelled {
+                        self.handleConnectionError(error)
+                    }
+                    break
+                }
             }
         }
     }
 
     private func handleReceivedMessage(_ message: URLSessionWebSocketTask.Message) {
+        let text: String
         switch message {
-        case .string(let text):
-            do {
-                let wsMessage = try WebSocketMessage.parse(from: text)
-                messagePublisher.send(wsMessage)
-            } catch {
-                print("Failed to parse WebSocket message: \(error)")
-            }
-
+        case .string(let str):
+            text = str
         case .data(let data):
-            if let text = String(data: data, encoding: .utf8) {
-                do {
-                    let wsMessage = try WebSocketMessage.parse(from: text)
-                    messagePublisher.send(wsMessage)
-                } catch {
-                    print("Failed to parse WebSocket data message: \(error)")
-                }
-            }
-
+            guard let str = String(data: data, encoding: .utf8) else { return }
+            text = str
         @unknown default:
-            break
+            return
+        }
+
+        do {
+            let wsMessage = try WebSocketMessage.parse(from: text)
+            messagePublisher.send(wsMessage)
+        } catch {
+            print("[WebSocket] Failed to parse message: \(error)")
         }
     }
 
     private func handleConnectionError(_ error: Error) {
-        cancelPingTimer()
+        pingTask?.cancel()
+        receiveTask?.cancel()
 
         if reconnectAttempts < maxReconnectAttempts {
             updateConnectionState(.reconnecting(attempt: reconnectAttempts + 1))
             scheduleReconnection()
         } else {
-            updateConnectionState(.failed(error))
+            updateConnectionState(.failed(error.localizedDescription))
         }
     }
 
     private func scheduleReconnection() {
-        cancelReconnectionTimer()
+        reconnectionTask?.cancel()
         reconnectAttempts += 1
 
-        let delay = reconnectionDelay * Double(reconnectAttempts)
-        reconnectionTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+        let delay = baseReconnectionDelay * pow(2.0, Double(reconnectAttempts - 1)) // Exponential backoff
+        reconnectionTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
             self?.establishConnection()
         }
     }
 
-    private func cancelReconnectionTimer() {
-        reconnectionTimer?.invalidate()
-        reconnectionTimer = nil
-    }
-
-    private func startPingTimer() {
-        cancelPingTimer()
-        pingTimer = Timer.scheduledTimer(withTimeInterval: pingInterval, repeats: true) { [weak self] _ in
-            self?.sendPing()
-        }
-    }
-
-    private func cancelPingTimer() {
-        pingTimer?.invalidate()
-        pingTimer = nil
-    }
-
-    private func sendPing() {
-        webSocketTask?.sendPing { [weak self] error in
-            if let error = error {
-                print("WebSocket ping failed: \(error)")
-                self?.handleConnectionError(error)
+    private func startPingLoop() {
+        pingTask?.cancel()
+        pingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(self?.pingInterval ?? 30) * 1_000_000_000)
+                guard !Task.isCancelled else { break }
+                self?.webSocketTask?.sendPing { error in
+                    if let error {
+                        print("[WebSocket] Ping failed: \(error)")
+                        self?.handleConnectionError(error)
+                    }
+                }
             }
         }
     }
@@ -198,8 +198,6 @@ public class WebSocketManager: NSObject {
     private func updateConnectionState(_ newState: ConnectionState) {
         connectionState = newState
         connectionStatePublisher.send(newState)
-
-        // Reset reconnect attempts on successful connection
         if case .connected = newState {
             reconnectAttempts = 0
         }
@@ -227,7 +225,7 @@ extension WebSocketManager: URLSessionWebSocketDelegate {
     }
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
+        if let error {
             handleConnectionError(error)
         }
     }
@@ -235,7 +233,7 @@ extension WebSocketManager: URLSessionWebSocketDelegate {
 
 // MARK: - WebSocket Message Model
 
-public struct WebSocketMessage {
+public struct WebSocketMessage: Sendable {
     public let namespace: String
     public let type: String
     public let groupId: String?
@@ -245,12 +243,12 @@ public struct WebSocketMessage {
     static func parse(from jsonString: String) throws -> WebSocketMessage {
         guard let data = jsonString.data(using: .utf8),
               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw WebSocketError.invalidMessageFormat
+            throw SonosError.webSocketError(.invalidMessageFormat)
         }
 
         guard let namespace = json["namespace"] as? String,
               let type = json["type"] as? String else {
-            throw WebSocketError.missingRequiredFields
+            throw SonosError.webSocketError(.missingRequiredFields)
         }
 
         return WebSocketMessage(
@@ -260,27 +258,5 @@ public struct WebSocketMessage {
             playerId: json["playerId"] as? String,
             data: json
         )
-    }
-}
-
-// MARK: - WebSocket Error
-
-public enum WebSocketError: LocalizedError {
-    case invalidURL
-    case invalidMessageFormat
-    case missingRequiredFields
-    case connectionFailed(Error)
-
-    public var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "Invalid WebSocket URL"
-        case .invalidMessageFormat:
-            return "Invalid WebSocket message format"
-        case .missingRequiredFields:
-            return "WebSocket message missing required fields"
-        case .connectionFailed(let error):
-            return "WebSocket connection failed: \(error.localizedDescription)"
-        }
     }
 }

@@ -1,25 +1,19 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/17/21.
+//  SonosManager+Households.swift
+//  SonosSDK
 //
 
 import Foundation
 
 extension SonosManager {
 
-    public func getHouseholds(success: @escaping ([Household]) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        householdService.getHouseholds(authenticationToken: authenticationToken, success: { households in
-            self.container.register([Household].self) { _ in households }
-            success(households)
-        }, failure: failure)
+    /// Get all households for the authenticated user
+    public func getHouseholds() async throws -> [Household] {
+        try await householdService.getHouseholds()
     }
 
+    /// Get a single household by ID
+    public func getHousehold(householdId: String) async throws -> Household {
+        try await householdService.getHousehold(householdId: householdId)
+    }
 }

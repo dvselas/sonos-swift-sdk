@@ -2,80 +2,35 @@
 //  PlaylistService.swift
 //  SonosSDK
 //
-//  Created on 2025-01-22.
-//
 
 import Foundation
-import SwiftyJSON
-import SonosNetworking
 
 struct PlaylistService {
 
-    func getPlaylists(authenticationToken: AuthenticationToken, householdId: String, success: @escaping ([Playlist]) -> (), failure: @escaping (Error?) -> ()) {
-        PlaylistsGetPlaylistsNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            guard let data = data else {
-                let error = NSError.errorWithMessage(message: "No data received from PlaylistsGetPlaylistsNetwork.")
-                failure(error)
-                return
-            }
+    private let client: HTTPClientProtocol
 
-            let playlists = self.decodePlaylists(data)
-            success(playlists)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    init(client: HTTPClientProtocol) {
+        self.client = client
     }
 
-    func getPlaylist(authenticationToken: AuthenticationToken, householdId: String, playlistId: String, success: @escaping (Playlist) -> (), failure: @escaping (Error?) -> ()) {
-        PlaylistsGetPlaylistNetwork(accessToken: authenticationToken.access_token, householdId: householdId, playlistId: playlistId) { data in
-            guard let data = data,
-                  let playlist = Playlist(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create Playlist object.")
-                failure(error)
-                return
-            }
-            success(playlist)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func getPlaylists(householdId: String) async throws -> [Playlist] {
+        let response: PlaylistsResponse = try await client.request(.getPlaylists(householdId: householdId))
+        return response.playlists
     }
 
-    func loadPlaylist(authenticationToken: AuthenticationToken, groupId: String, action: String? = nil, playlistId: String, playOnCompletion: Bool? = nil, playModes: [String]? = nil, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaylistsLoadPlaylistNetwork(accessToken: authenticationToken.access_token, groupId: groupId, action: action, playlistId: playlistId, playOnCompletion: playOnCompletion, playModes: playModes) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func getPlaylist(householdId: String, playlistId: String) async throws -> Playlist {
+        try await client.request(.getPlaylist(householdId: householdId, playlistId: playlistId))
     }
 
-    func subscribe(authenticationToken: AuthenticationToken, householdId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaylistsSubscribeNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func loadPlaylist(groupId: String, playlistId: String, playOnCompletion: Bool? = true, playModes: PlayModesBody? = nil) async throws {
+        try await client.request(.loadPlaylist(groupId: groupId, playlistId: playlistId, playOnCompletion: playOnCompletion, playModes: playModes))
     }
 
-    func unsubscribe(authenticationToken: AuthenticationToken, householdId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        PlaylistsUnsubscribeNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func subscribe(householdId: String) async throws {
+        try await client.request(.subscribeToPlaylists(householdId: householdId))
     }
 
-    // MARK: - Private Helpers
-
-    private func decodePlaylists(_ data: Any) -> [Playlist] {
-        let json = JSON(data)
-        var playlists = [Playlist]()
-
-        for playlistJson in json["playlists"].arrayValue {
-            if let playlist = Playlist(playlistJson) {
-                playlists.append(playlist)
-            }
-        }
-
-        return playlists
+    func unsubscribe(householdId: String) async throws {
+        try await client.request(.unsubscribeFromPlaylists(householdId: householdId))
     }
 }

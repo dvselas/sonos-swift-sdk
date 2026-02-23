@@ -1,26 +1,27 @@
 //
-//  File.swift
-//  
-//
-//  Created by von Selasinsky, Deno on 13.11.23.
+//  GroupMetadataService.swift
+//  SonosSDK
 //
 
 import Foundation
-import SwiftyJSON
-import SonosNetworking
 
 struct GroupMetadataService {
-    func getGroupPlaybackMetadata(authenticationToken: AuthenticationToken, groupId: String, success: @escaping (PlaybackMetadata) -> (), failure: @escaping (Error?) -> ()) {
-        PlaybackGetMetadataNetwork(accessToken: authenticationToken.access_token, groupId: groupId) { data in
-            guard let data = data,
-                  let playbackMetadata = PlaybackMetadata(data) else {
-                let error = NSError.errorWithMessage(message: "Could not create PlaybackStatus object.")
-                failure(error)
-                return
-            }
-            success(playbackMetadata)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+
+    private let client: HTTPClientProtocol
+
+    init(client: HTTPClientProtocol) {
+        self.client = client
+    }
+
+    func getMetadataStatus(groupId: String) async throws -> PlaybackMetadata {
+        try await client.request(.getMetadataStatus(groupId: groupId))
+    }
+
+    func subscribe(groupId: String) async throws {
+        try await client.request(.subscribeToPlaybackMetadata(groupId: groupId))
+    }
+
+    func unsubscribe(groupId: String) async throws {
+        try await client.request(.unsubscribeFromPlaybackMetadata(groupId: groupId))
     }
 }

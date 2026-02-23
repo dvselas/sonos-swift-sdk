@@ -1,26 +1,7 @@
 //
-//  File.swift
-//  
+//  SonosManager+Players.swift
+//  SonosSDK
 //
-//  Created by James Hickman on 2/19/21.
+//  Deprecated: Player methods are now in SonosManager+Groups.swift (getPlayers).
+//  This file is intentionally empty and will be removed in EPIC 6 cleanup.
 //
-
-import Foundation
-
-extension SonosManager {
-
-    public func getPlayers(householdId: String, group: Group, success: @escaping ([Player]) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        playerService.getPlayers(authenticationToken: authenticationToken, householdId: householdId, success: { players in
-            let groupPlayers = players.filter { return group.playerIDs.contains($0.id) }
-            self.container.register([Player].self) { _ in players }
-            success(groupPlayers)
-        }, failure: failure)
-    }
-
-}

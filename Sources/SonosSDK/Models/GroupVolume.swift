@@ -1,33 +1,21 @@
 //
-//  File.swift
-//  
+//  GroupVolume.swift
+//  SonosSDK
 //
 //  Created by James Hickman on 3/21/21.
 //
 
 import Foundation
-import SwiftyJSON
 
-public struct GroupVolume {
+public struct GroupVolume: Codable, Sendable {
 
-    public var volume: Int = 0
-    public var muted: Bool = false
-    public var fixed: Bool = false
+    public let volume: Int
+    public let muted: Bool
+    public let fixed: Bool
 
-    public init() { }
-
-    init?(_ data: Any) {
-
-        let json = JSON(data)
-        guard let volume = json["volume"].int,
-              let muted = json["muted"].bool,
-              let fixed = json["fixed"].bool else {
-            return nil
-        }
-
+    public init(volume: Int = 0, muted: Bool = false, fixed: Bool = false) {
         self.volume = volume
         self.muted = muted
         self.fixed = fixed
     }
-
 }

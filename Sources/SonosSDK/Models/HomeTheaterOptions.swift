@@ -1,28 +1,19 @@
 //
-//  File.swift
-//  
+//  HomeTheaterOptions.swift
+//  SonosSDK
 //
 //  Created by James Hickman on 2/22/21.
 //
 
 import Foundation
-import SwiftyJSON
 
-public struct HomeTheaterOptions {
-    
-    public var nightMode: Bool = false
-    public var enhanceDialog: Bool = false
+public struct HomeTheaterOptions: Codable, Sendable {
 
-    public init() { }
+    public let nightMode: Bool
+    public let enhanceDialog: Bool
 
-    init?(_ data: Any) {
-        
-        let json = JSON(data)
-        guard let nightMode = json["nightMode"].bool,
-              let enhanceDialog = json["enhanceDialog"].bool else { return nil }
-        
+    public init(nightMode: Bool = false, enhanceDialog: Bool = false) {
         self.nightMode = nightMode
         self.enhanceDialog = enhanceDialog
     }
-
 }

@@ -1,52 +1,25 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/25/21.
+//  SonosManager+Favorites.swift
+//  SonosSDK
 //
 
 import Foundation
 
 extension SonosManager {
 
-    public func getFavorites(householdId: String, success: @escaping ([Favorite]) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        favoriteService.getFavorites(authenticationToken: authenticationToken, householdId: householdId, success: success, failure: failure)
+    public func getFavorites(householdId: String) async throws -> [Favorite] {
+        try await favoriteService.getFavorites(householdId: householdId)
     }
 
-    public func loadFavorite(groupId: String, favoriteId: String, success: @escaping (Error?) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        favoriteService.loadFavorite(authenticationToken: authenticationToken, groupId: groupId, favoriteId: favoriteId, success: success, failure: failure)
+    public func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE") async throws {
+        try await favoriteService.loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion, action: action)
     }
 
-    public func subscribeToFavorites(forHouseholdId householdId: String, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        favoriteService.subscribe(authenticationToken: authenticationToken, householdId: householdId, success: success, failure: failure)
+    public func subscribeToFavorites(householdId: String) async throws {
+        try await favoriteService.subscribe(householdId: householdId)
     }
 
-    public func unsubscribeToFavorites(forHouseholdId householdId: String, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        favoriteService.unsubscribe(authenticationToken: authenticationToken, householdId: householdId, success: success, failure: failure)
+    public func unsubscribeFromFavorites(householdId: String) async throws {
+        try await favoriteService.unsubscribe(householdId: householdId)
     }
-
 }

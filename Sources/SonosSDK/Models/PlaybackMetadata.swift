@@ -6,370 +6,190 @@
 //
 
 import Foundation
-import SwiftyJSON
 
-public struct PlaybackMetadata {
-    public var container: ContainerMetadata?
-    public var currentItem: Item?
-    public var nextItem: Item?
-    public var currentShow: CurrentShow?        // NEW: For radio stations
-    public var streamInfo: String?              // NEW: For stations without detailed metadata
-    public var playbackSessionInfo: PlaybackSessionInfo? // NEW: External source details
+public struct PlaybackMetadata: Codable, Sendable {
+    public let container: ContainerMetadata?
+    public let currentItem: Item?
+    public let nextItem: Item?
+    public let currentShow: CurrentShow?
+    public let streamInfo: String?
+    public let playbackSession: PlaybackSessionInfo?
 
-    public init?(_ data: Any) {
-        let json = JSON(data)
-
-        // Make all fields optional since they may not be present
-        self.container = json["container"].dictionary != nil ? ContainerMetadata(json["container"].dictionaryValue) : nil
-        self.currentItem = json["currentItem"].dictionary != nil ? Item(json["currentItem"].dictionaryValue) : nil
-        self.nextItem = json["nextItem"].dictionary != nil ? Item(json["nextItem"].dictionaryValue) : nil
-        self.currentShow = json["currentShow"].dictionary != nil ? CurrentShow(json["currentShow"].dictionaryValue) : nil
-        self.streamInfo = json["streamInfo"].string
-        self.playbackSessionInfo = json["playbackSession"].dictionary != nil ? PlaybackSessionInfo(json["playbackSession"].dictionaryValue) : nil
+    enum CodingKeys: String, CodingKey {
+        case container, currentItem, nextItem, currentShow, streamInfo, playbackSession
     }
 }
 
 // MARK: - Container Metadata
 
-public struct ContainerMetadata {
-    public var name: String?
-    public var type: String?
-    public var id: IdMetadata?
-    public var service: ServiceMetadata?
-    public var imageUrl: String?
-    public var images: [ImageObject]?
-    public var book: Book?          // NEW: For audiobooks
-    public var podcast: Podcast?    // NEW: For podcasts
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string
-        self.type = json["type"].string
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.service = json["service"].dictionary != nil ? ServiceMetadata(json["service"].dictionaryValue) : nil
-        self.imageUrl = json["imageUrl"].string
-        self.images = json["images"].array?.compactMap { ImageObject($0.dictionaryObject ?? [:]) }
-        self.book = json["book"].dictionary != nil ? Book(json["book"].dictionaryValue) : nil
-        self.podcast = json["podcast"].dictionary != nil ? Podcast(json["podcast"].dictionaryValue) : nil
-    }
+public struct ContainerMetadata: Codable, Sendable {
+    public let name: String?
+    public let type: String?
+    public let id: IdMetadata?
+    public let service: ServiceMetadata?
+    public let imageUrl: String?
+    public let images: [ImageObject]?
+    public let book: Book?
+    public let podcast: Podcast?
 }
 
 // MARK: - Item (Current/Next Track)
 
-public struct Item {
-    public var id: String?
-    public var track: Track?
-    public var policies: Policies?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.id = json["id"].string
-        self.track = json["track"].dictionary != nil ? Track(json["track"].dictionaryValue) : nil
-        self.policies = json["policies"].dictionary != nil ? Policies(json["policies"].dictionaryValue) : nil
-    }
+public struct Item: Codable, Sendable {
+    public let id: String?
+    public let track: Track?
+    public let policies: Policies?
 }
 
 // MARK: - Track
 
-public struct Track {
-    public var type: String?
-    public var name: String?
-    public var mediaUrl: String?
-    public var imageUrl: String?
-    public var images: [ImageObject]?
-    public var contentType: String?
-    public var album: Album?
-    public var artist: Artist?
-    public var author: Author?              // NEW: For audiobooks
-    public var book: Book?                  // NEW: For audiobooks
-    public var narrator: Narrator?          // NEW: For audiobooks
-    public var podcast: Podcast?            // NEW: For podcast episodes
-    public var producer: Producer?          // NEW: For podcasts
-    public var releaseDate: String?         // NEW
-    public var episodeNumber: Int?          // NEW: For podcasts
-    public var id: IdMetadata?
-    public var service: ServiceMetadata?
-    public var durationMillis: Int?
-    public var trackNumber: Int?            // NEW
-    public var chapterNumber: Int?          // NEW: For audiobooks
-    public var tags: [String]?              // NEW (deprecated in API but may exist)
-    public var quality: Quality?
-    public var deleted: Bool?               // NEW
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.type = json["type"].string
-        self.name = json["name"].string
-        self.mediaUrl = json["mediaUrl"].string
-        self.imageUrl = json["imageUrl"].string
-        self.images = json["images"].array?.compactMap { ImageObject($0.dictionaryObject ?? [:]) }
-        self.contentType = json["contentType"].string
-        self.album = json["album"].dictionary != nil ? Album(json["album"].dictionaryValue) : nil
-        self.artist = json["artist"].dictionary != nil ? Artist(json["artist"].dictionaryValue) : nil
-        self.author = json["author"].dictionary != nil ? Author(json["author"].dictionaryValue) : nil
-        self.book = json["book"].dictionary != nil ? Book(json["book"].dictionaryValue) : nil
-        self.narrator = json["narrator"].dictionary != nil ? Narrator(json["narrator"].dictionaryValue) : nil
-        self.podcast = json["podcast"].dictionary != nil ? Podcast(json["podcast"].dictionaryValue) : nil
-        self.producer = json["producer"].dictionary != nil ? Producer(json["producer"].dictionaryValue) : nil
-        self.releaseDate = json["releaseDate"].string
-        self.episodeNumber = json["episodeNumber"].int
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.service = json["service"].dictionary != nil ? ServiceMetadata(json["service"].dictionaryValue) : nil
-        self.durationMillis = json["durationMillis"].int
-        self.trackNumber = json["trackNumber"].int
-        self.chapterNumber = json["chapterNumber"].int
-        self.tags = json["tags"].array?.compactMap { $0.string }
-        self.quality = json["quality"].dictionary != nil ? Quality(json["quality"].dictionaryValue) : nil
-        self.deleted = json["deleted"].bool
-    }
+public struct Track: Codable, Sendable {
+    public let type: String?
+    public let name: String?
+    public let mediaUrl: String?
+    public let imageUrl: String?
+    public let images: [ImageObject]?
+    public let contentType: String?
+    public let album: Album?
+    public let artist: Artist?
+    public let author: Author?
+    public let book: Book?
+    public let narrator: Narrator?
+    public let podcast: Podcast?
+    public let producer: Producer?
+    public let releaseDate: String?
+    public let episodeNumber: Int?
+    public let id: IdMetadata?
+    public let service: ServiceMetadata?
+    public let durationMillis: Int?
+    public let trackNumber: Int?
+    public let chapterNumber: Int?
+    public let tags: [String]?
+    public let quality: Quality?
+    public let deleted: Bool?
 }
 
 // MARK: - Supporting Types
 
-public struct IdMetadata {
-    public var serviceId: String?
-    public var objectId: String
-    public var accountId: String?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.serviceId = json["serviceId"].string
-        self.objectId = json["objectId"].string ?? ""
-        self.accountId = json["accountId"].string
-    }
+public struct IdMetadata: Codable, Sendable {
+    public let serviceId: String?
+    public let objectId: String?
+    public let accountId: String?
 }
 
-public struct ServiceMetadata {
-    public var name: String?
-    public var id: String?
-    public var imageUrl: String?
-    public var images: [ImageObject]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string
-        self.id = json["id"].string
-        self.imageUrl = json["imageUrl"].string
-        self.images = json["images"].array?.compactMap { ImageObject($0.dictionaryObject ?? [:]) }
-    }
+public struct ServiceMetadata: Codable, Sendable {
+    public let name: String?
+    public let id: String?
+    public let imageUrl: String?
+    public let images: [ImageObject]?
 }
 
-public struct ImageObject {
-    public var url: String?
-    public var width: Int?
-    public var height: Int?
-
-    init(_ data: [String: Any]) {
-        let json = JSON(data)
-        self.url = json["url"].string
-        self.width = json["width"].int
-        self.height = json["height"].int
-    }
+public struct ImageObject: Codable, Sendable {
+    public let url: String?
+    public let width: Int?
+    public let height: Int?
 }
 
-public struct Album {
-    public var name: String
-    public var artist: Artist?
-    public var id: IdMetadata?
-    public var tags: [String]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.artist = json["artist"].dictionary != nil ? Artist(json["artist"].dictionaryValue) : nil
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.tags = json["tags"].array?.compactMap { $0.string }
-    }
+public struct Album: Codable, Sendable {
+    public let name: String?
+    public let artist: Artist?
+    public let id: IdMetadata?
+    public let tags: [String]?
 }
 
-public struct Artist {
-    public var name: String
-    public var id: IdMetadata?
-    public var tags: [String]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.tags = json["tags"].array?.compactMap { $0.string }
-    }
+public struct Artist: Codable, Sendable {
+    public let name: String?
+    public let id: IdMetadata?
+    public let tags: [String]?
 }
 
 // MARK: - Audiobook Support
 
-public struct Author {
-    public var name: String
-    public var id: IdMetadata?
-    public var tags: [String]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.tags = json["tags"].array?.compactMap { $0.string }
-    }
+public struct Author: Codable, Sendable {
+    public let name: String?
+    public let id: IdMetadata?
+    public let tags: [String]?
 }
 
-public struct Book {
-    public var name: String
-    public var chapterCount: Int?
-    public var author: Author?
-    public var narrator: Narrator?
-    public var id: IdMetadata?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.chapterCount = json["chapterCount"].int
-        self.author = json["author"].dictionary != nil ? Author(json["author"].dictionaryValue) : nil
-        self.narrator = json["narrator"].dictionary != nil ? Narrator(json["narrator"].dictionaryValue) : nil
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-    }
+public struct Book: Codable, Sendable {
+    public let name: String?
+    public let chapterCount: Int?
+    public let author: Author?
+    public let narrator: Narrator?
+    public let id: IdMetadata?
 }
 
-public struct Narrator {
-    public var name: String
-    public var id: IdMetadata?
-    public var tags: [String]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.tags = json["tags"].array?.compactMap { $0.string }
-    }
+public struct Narrator: Codable, Sendable {
+    public let name: String?
+    public let id: IdMetadata?
+    public let tags: [String]?
 }
 
 // MARK: - Podcast Support
 
-public struct Podcast {
-    public var name: String
-    public var producer: Producer?
-    public var id: IdMetadata?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.producer = json["producer"].dictionary != nil ? Producer(json["producer"].dictionaryValue) : nil
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-    }
+public struct Podcast: Codable, Sendable {
+    public let name: String?
+    public let producer: Producer?
+    public let id: IdMetadata?
 }
 
-public struct Producer {
-    public var name: String
-    public var id: IdMetadata?
-    public var tags: [String]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.tags = json["tags"].array?.compactMap { $0.string }
-    }
+public struct Producer: Codable, Sendable {
+    public let name: String?
+    public let id: IdMetadata?
+    public let tags: [String]?
 }
 
 // MARK: - Radio Support
 
-public struct CurrentShow {
-    public var name: String
-    public var id: IdMetadata?
-    public var imageUrl: String?
-    public var images: [ImageObject]?
-    public var tags: [String]?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.name = json["name"].string ?? ""
-        self.id = json["id"].dictionary != nil ? IdMetadata(json["id"].dictionaryValue) : nil
-        self.imageUrl = json["imageUrl"].string
-        self.images = json["images"].array?.compactMap { ImageObject($0.dictionaryObject ?? [:]) }
-        self.tags = json["tags"].array?.compactMap { $0.string }
-    }
+public struct CurrentShow: Codable, Sendable {
+    public let name: String?
+    public let id: IdMetadata?
+    public let imageUrl: String?
+    public let images: [ImageObject]?
+    public let tags: [String]?
 }
 
 // MARK: - Quality
 
-public struct Quality {
-    public var bitDepth: Int?
-    public var sampleRate: Int?
-    public var codec: String?
-    public var lossless: Bool?
-    public var immersive: Bool?
-    public var replayGain: Float?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.bitDepth = json["bitDepth"].int
-        self.sampleRate = json["sampleRate"].int
-        self.codec = json["codec"].string
-        self.lossless = json["lossless"].bool
-        self.immersive = json["immersive"].bool
-        self.replayGain = json["replayGain"].float
-    }
+public struct Quality: Codable, Sendable {
+    public let bitDepth: Int?
+    public let sampleRate: Int?
+    public let codec: String?
+    public let lossless: Bool?
+    public let immersive: Bool?
+    public let replayGain: Float?
 }
 
 // MARK: - Policies
 
-public struct Policies {
-    public var canSkip: Bool?
-    public var canSkipBack: Bool?               // Deprecated but may exist
-    public var canSkipToPrevious: Bool?
-    public var limitedSkips: Bool?
-    public var canSeek: Bool?
-    public var canSkipToItem: Bool?
-    public var canRepeat: Bool?
-    public var canRepeatOne: Bool?
-    public var canCrossfade: Bool?
-    public var canShuffle: Bool?
-    public var canResume: Bool?
-    public var pauseAtEndOfQueue: Bool?
-    public var refreshAuthWhilePaused: Bool?
-    public var showNNextTracks: Int?
-    public var showNPreviousTracks: Int?
-    public var isVisible: Bool?
-    public var notifyUserIntent: Bool?
-    public var pauseTtlSec: Int?
-    public var playTtlSec: Int?
-    public var pauseOnDuck: Bool?
-    public var skipsRemaining: Int?
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.canSkip = json["canSkip"].bool
-        self.canSkipBack = json["canSkipBack"].bool
-        self.canSkipToPrevious = json["canSkipToPrevious"].bool
-        self.limitedSkips = json["limitedSkips"].bool
-        self.canSeek = json["canSeek"].bool
-        self.canSkipToItem = json["canSkipToItem"].bool
-        self.canRepeat = json["canRepeat"].bool
-        self.canRepeatOne = json["canRepeatOne"].bool
-        self.canCrossfade = json["canCrossfade"].bool
-        self.canShuffle = json["canShuffle"].bool
-        self.canResume = json["canResume"].bool
-        self.pauseAtEndOfQueue = json["pauseAtEndOfQueue"].bool
-        self.refreshAuthWhilePaused = json["refreshAuthWhilePaused"].bool
-        self.showNNextTracks = json["showNNextTracks"].int
-        self.showNPreviousTracks = json["showNPreviousTracks"].int
-        self.isVisible = json["isVisible"].bool
-        self.notifyUserIntent = json["notifyUserIntent"].bool
-        self.pauseTtlSec = json["pauseTtlSec"].int
-        self.playTtlSec = json["playTtlSec"].int
-        self.pauseOnDuck = json["pauseOnDuck"].bool
-        self.skipsRemaining = json["skipsRemaining"].int
-    }
+public struct Policies: Codable, Sendable {
+    public let canSkip: Bool?
+    public let canSkipBack: Bool?
+    public let canSkipToPrevious: Bool?
+    public let limitedSkips: Bool?
+    public let canSeek: Bool?
+    public let canSkipToItem: Bool?
+    public let canRepeat: Bool?
+    public let canRepeatOne: Bool?
+    public let canCrossfade: Bool?
+    public let canShuffle: Bool?
+    public let canResume: Bool?
+    public let pauseAtEndOfQueue: Bool?
+    public let refreshAuthWhilePaused: Bool?
+    public let showNNextTracks: Int?
+    public let showNPreviousTracks: Int?
+    public let isVisible: Bool?
+    public let notifyUserIntent: Bool?
+    public let pauseTtlSec: Int?
+    public let playTtlSec: Int?
+    public let pauseOnDuck: Bool?
+    public let skipsRemaining: Int?
 }
 
 // MARK: - Playback Session Info (External Source)
 
-public struct PlaybackSessionInfo {
-    public var clientId: String
-    public var isSuspended: Bool
-    public var accountId: String
-
-    init(_ data: [String: JSON]) {
-        let json = JSON(data)
-        self.clientId = json["clientId"].string ?? ""
-        self.isSuspended = json["isSuspended"].bool ?? false
-        self.accountId = json["accountId"].string ?? ""
-    }
+public struct PlaybackSessionInfo: Codable, Sendable {
+    public let clientId: String?
+    public let isSuspended: Bool?
+    public let accountId: String?
 }

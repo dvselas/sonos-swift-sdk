@@ -1,67 +1,32 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/24/21.
+//  FavoriteService.swift
+//  SonosSDK
 //
 
 import Foundation
-import SwiftyJSON
-import SonosNetworking
 
 struct FavoriteService {
-            
-    func getFavorites(authenticationToken: AuthenticationToken, householdId: String, success: @escaping ([Favorite]) -> (), failure: @escaping (Error?) -> ()) {
-        FavoritesGetNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            guard let favorites = data.map({ self.decode($0) }) else {
-                let error = NSError.errorWithMessage(message: "Could not create Favorites object.")
-                failure(error)
-                return
-            }
-            success(favorites)
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+
+    private let client: HTTPClientProtocol
+
+    init(client: HTTPClientProtocol) {
+        self.client = client
     }
 
-    func loadFavorite(authenticationToken: AuthenticationToken, groupId: String, favoriteId: String, success: @escaping (Error?) -> (), failure: @escaping (Error?) -> ()) {
-        FavoritesLoadNetwork(accessToken: authenticationToken.access_token, groupId: groupId, action: "REPLACE", favoriteId: favoriteId, playOnCompletion: true, playModes: nil) { data in
-            guard let data = data else {
-                success(nil)
-                return
-            }
-            success(NSError.errorWithData(data: data))
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func getFavorites(householdId: String) async throws -> [Favorite] {
+        let response: FavoritesResponse = try await client.request(.getFavorites(householdId: householdId))
+        return response.items
     }
 
-    func subscribe(authenticationToken: AuthenticationToken, householdId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        FavoritesSubscribeNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE") async throws {
+        try await client.request(.loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion, action: action))
     }
 
-    func unsubscribe(authenticationToken: AuthenticationToken, householdId: String, success: @escaping () -> (), failure: @escaping (Error?) -> ()) {
-        FavoritesUnsubscribeNetwork(accessToken: authenticationToken.access_token, householdId: householdId) { data in
-            success()
-        } failure: { error in
-            failure(error)
-        }.performRequest()
+    func subscribe(householdId: String) async throws {
+        try await client.request(.subscribeToFavorites(householdId: householdId))
     }
 
-    fileprivate func decode(_ data: Any) -> [Favorite] {
-        
-        let json = JSON(data)
-        var favorites = [Favorite]()
-        for item in json["items"].arrayValue {
-            if let favorite = Favorite(item) {
-                favorites.append(favorite)
-            }
-        }
-        return favorites
-        
+    func unsubscribe(householdId: String) async throws {
+        try await client.request(.unsubscribeFromFavorites(householdId: householdId))
     }
 }

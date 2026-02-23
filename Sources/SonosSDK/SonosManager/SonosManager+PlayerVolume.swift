@@ -1,76 +1,55 @@
 //
-//  File.swift
-//  
-//
-//  Created by James Hickman on 2/20/21.
+//  SonosManager+PlayerVolume.swift
+//  SonosSDK
 //
 
 import Foundation
 
 extension SonosManager {
 
-    public func getPlayerVolume(forPlayer player: Player, success: @escaping (PlayerVolume) -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
+    /// Get player volume with automatic caching
+    public func getPlayerVolume(playerId: String, useCache: Bool = true) async throws -> PlayerVolume {
+        if useCache, let cached = stateCache.getPlayerVolume(for: playerId) {
+            return cached
         }
 
-        playerVolumeService.getVolume(authenticationToken: authenticationToken, playerID: player.id, success: { playerVolume in
-            success(playerVolume)
-        }, failure: failure)
-    }
-    
-    public func setPlayerVolume(forPlayer player: Player, volume: Int, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        playerVolumeService.setVolume(authenticationToken: authenticationToken, playerID: player.id, volume: volume, success: {
-            success()
-        }, failure: failure)
+        let volume = try await playerVolumeService.getVolume(playerId: playerId)
+        stateCache.setPlayerVolume(volume, for: playerId)
+        return volume
     }
 
-    public func setPlayerMuted(forPlayer player: Player, muted: Bool, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        playerVolumeService.setMuted(authenticationToken: authenticationToken, playerID: player.id, muted: muted, success: success, failure: failure)
+    public func setPlayerVolume(playerId: String, volume: Int) async throws {
+        try await playerVolumeService.setVolume(playerId: playerId, volume: volume)
+        stateCache.invalidatePlayerVolume(for: playerId)
     }
 
-    public func setPlayerRelativeVolume(forPlayer player: Player, relativeVolume: Int, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        playerVolumeService.setRelativeVolume(authenticationToken: authenticationToken, playerID: player.id, relativeVolume: relativeVolume, success: success, failure: failure)
+    public func setPlayerMuted(playerId: String, muted: Bool) async throws {
+        try await playerVolumeService.setMuted(playerId: playerId, muted: muted)
+        stateCache.invalidatePlayerVolume(for: playerId)
     }
 
-    public func subscribeToPlayerVolume(forPlayer player: Player, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        playerVolumeService.subscribe(authenticationToken: authenticationToken, playerID: player.id, success: success, failure: failure)
+    public func setPlayerRelativeVolume(playerId: String, volumeDelta: Int) async throws {
+        try await playerVolumeService.setRelativeVolume(playerId: playerId, volumeDelta: volumeDelta)
+        stateCache.invalidatePlayerVolume(for: playerId)
     }
 
-    public func unsubscribeToPlayerVolume(forPlayer player: Player, success: @escaping () -> Void, failure: @escaping (Error?) -> Void) {
-        guard let authenticationToken = authenticationToken else {
-            let error = NSError.errorWithMessage(message: "Could not load authentication token.")
-            failure(error)
-            return
-        }
-
-        playerVolumeService.unsubscribe(authenticationToken: authenticationToken, playerID: player.id, success: success, failure: failure)
+    /// Temporarily reduce player volume (for notifications/alerts)
+    public func duckPlayerVolume(playerId: String) async throws {
+        try await playerVolumeService.duck(playerId: playerId)
     }
 
+    /// Restore player volume after ducking
+    public func unduckPlayerVolume(playerId: String) async throws {
+        try await playerVolumeService.unduck(playerId: playerId)
+    }
+
+    /// Subscribe to player volume change events
+    public func subscribeToPlayerVolume(playerId: String) async throws {
+        try await playerVolumeService.subscribe(playerId: playerId)
+    }
+
+    /// Unsubscribe from player volume change events
+    public func unsubscribeFromPlayerVolume(playerId: String) async throws {
+        try await playerVolumeService.unsubscribe(playerId: playerId)
+    }
 }

@@ -2,14 +2,13 @@
 //  StateCacheManager.swift
 //  SonosSDK
 //
-//  Created on 2025-01-22.
+//  Thread-safe cache manager with TTL-based invalidation
 //
 
 import Foundation
-import Combine
 
 /// Thread-safe cache manager for Sonos API state with TTL-based invalidation
-public class StateCacheManager {
+public final class StateCacheManager: @unchecked Sendable {
 
     // MARK: - Cache Entry
 
@@ -41,176 +40,120 @@ public class StateCacheManager {
 
     public static let shared = StateCacheManager()
 
-    private init() {
-        startCleanupTimer()
-    }
+    private init() {}
 
     // MARK: - Playback Status Cache
 
     public func getPlaybackStatus(for groupId: String) -> PlaybackStatus? {
         queue.sync {
-            guard let entry = playbackStatusCache[groupId], !entry.isExpired else {
-                return nil
-            }
+            guard let entry = playbackStatusCache[groupId], !entry.isExpired else { return nil }
             return entry.value
         }
     }
 
     public func setPlaybackStatus(_ status: PlaybackStatus, for groupId: String, ttl: TimeInterval? = nil) {
-        let actualTTL = ttl ?? defaultPlaybackTTL
         queue.async(flags: .barrier) {
-            self.playbackStatusCache[groupId] = CacheEntry(
-                value: status,
-                timestamp: Date(),
-                ttl: actualTTL
-            )
+            self.playbackStatusCache[groupId] = CacheEntry(value: status, timestamp: Date(), ttl: ttl ?? self.defaultPlaybackTTL)
         }
     }
 
     public func invalidatePlaybackStatus(for groupId: String) {
-        queue.async(flags: .barrier) {
-            self.playbackStatusCache.removeValue(forKey: groupId)
-        }
+        queue.async(flags: .barrier) { self.playbackStatusCache.removeValue(forKey: groupId) }
     }
 
     // MARK: - Playback Metadata Cache
 
     public func getPlaybackMetadata(for groupId: String) -> PlaybackMetadata? {
         queue.sync {
-            guard let entry = playbackMetadataCache[groupId], !entry.isExpired else {
-                return nil
-            }
+            guard let entry = playbackMetadataCache[groupId], !entry.isExpired else { return nil }
             return entry.value
         }
     }
 
     public func setPlaybackMetadata(_ metadata: PlaybackMetadata, for groupId: String, ttl: TimeInterval? = nil) {
-        let actualTTL = ttl ?? defaultMetadataTTL
         queue.async(flags: .barrier) {
-            self.playbackMetadataCache[groupId] = CacheEntry(
-                value: metadata,
-                timestamp: Date(),
-                ttl: actualTTL
-            )
+            self.playbackMetadataCache[groupId] = CacheEntry(value: metadata, timestamp: Date(), ttl: ttl ?? self.defaultMetadataTTL)
         }
     }
 
     public func invalidatePlaybackMetadata(for groupId: String) {
-        queue.async(flags: .barrier) {
-            self.playbackMetadataCache.removeValue(forKey: groupId)
-        }
+        queue.async(flags: .barrier) { self.playbackMetadataCache.removeValue(forKey: groupId) }
     }
 
     // MARK: - Group Volume Cache
 
     public func getGroupVolume(for groupId: String) -> GroupVolume? {
         queue.sync {
-            guard let entry = groupVolumeCache[groupId], !entry.isExpired else {
-                return nil
-            }
+            guard let entry = groupVolumeCache[groupId], !entry.isExpired else { return nil }
             return entry.value
         }
     }
 
     public func setGroupVolume(_ volume: GroupVolume, for groupId: String, ttl: TimeInterval? = nil) {
-        let actualTTL = ttl ?? defaultVolumeTTL
         queue.async(flags: .barrier) {
-            self.groupVolumeCache[groupId] = CacheEntry(
-                value: volume,
-                timestamp: Date(),
-                ttl: actualTTL
-            )
+            self.groupVolumeCache[groupId] = CacheEntry(value: volume, timestamp: Date(), ttl: ttl ?? self.defaultVolumeTTL)
         }
     }
 
     public func invalidateGroupVolume(for groupId: String) {
-        queue.async(flags: .barrier) {
-            self.groupVolumeCache.removeValue(forKey: groupId)
-        }
+        queue.async(flags: .barrier) { self.groupVolumeCache.removeValue(forKey: groupId) }
     }
 
     // MARK: - Player Volume Cache
 
     public func getPlayerVolume(for playerId: String) -> PlayerVolume? {
         queue.sync {
-            guard let entry = playerVolumeCache[playerId], !entry.isExpired else {
-                return nil
-            }
+            guard let entry = playerVolumeCache[playerId], !entry.isExpired else { return nil }
             return entry.value
         }
     }
 
     public func setPlayerVolume(_ volume: PlayerVolume, for playerId: String, ttl: TimeInterval? = nil) {
-        let actualTTL = ttl ?? defaultVolumeTTL
         queue.async(flags: .barrier) {
-            self.playerVolumeCache[playerId] = CacheEntry(
-                value: volume,
-                timestamp: Date(),
-                ttl: actualTTL
-            )
+            self.playerVolumeCache[playerId] = CacheEntry(value: volume, timestamp: Date(), ttl: ttl ?? self.defaultVolumeTTL)
         }
     }
 
     public func invalidatePlayerVolume(for playerId: String) {
-        queue.async(flags: .barrier) {
-            self.playerVolumeCache.removeValue(forKey: playerId)
-        }
+        queue.async(flags: .barrier) { self.playerVolumeCache.removeValue(forKey: playerId) }
     }
 
     // MARK: - Groups Cache
 
     public func getGroups() -> [Group]? {
         queue.sync {
-            guard let entry = groupsCache, !entry.isExpired else {
-                return nil
-            }
+            guard let entry = groupsCache, !entry.isExpired else { return nil }
             return entry.value
         }
     }
 
     public func setGroups(_ groups: [Group], ttl: TimeInterval? = nil) {
-        let actualTTL = ttl ?? defaultListTTL
         queue.async(flags: .barrier) {
-            self.groupsCache = CacheEntry(
-                value: groups,
-                timestamp: Date(),
-                ttl: actualTTL
-            )
+            self.groupsCache = CacheEntry(value: groups, timestamp: Date(), ttl: ttl ?? self.defaultListTTL)
         }
     }
 
     public func invalidateGroups() {
-        queue.async(flags: .barrier) {
-            self.groupsCache = nil
-        }
+        queue.async(flags: .barrier) { self.groupsCache = nil }
     }
 
     // MARK: - Players Cache
 
     public func getPlayers() -> [Player]? {
         queue.sync {
-            guard let entry = playersCache, !entry.isExpired else {
-                return nil
-            }
+            guard let entry = playersCache, !entry.isExpired else { return nil }
             return entry.value
         }
     }
 
     public func setPlayers(_ players: [Player], ttl: TimeInterval? = nil) {
-        let actualTTL = ttl ?? defaultListTTL
         queue.async(flags: .barrier) {
-            self.playersCache = CacheEntry(
-                value: players,
-                timestamp: Date(),
-                ttl: actualTTL
-            )
+            self.playersCache = CacheEntry(value: players, timestamp: Date(), ttl: ttl ?? self.defaultListTTL)
         }
     }
 
     public func invalidatePlayers() {
-        queue.async(flags: .barrier) {
-            self.playersCache = nil
-        }
+        queue.async(flags: .barrier) { self.playersCache = nil }
     }
 
     // MARK: - Bulk Operations
@@ -240,31 +183,6 @@ public class StateCacheManager {
         }
     }
 
-    // MARK: - Cleanup
-
-    private func startCleanupTimer() {
-        Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
-            self?.cleanupExpiredEntries()
-        }
-    }
-
-    private func cleanupExpiredEntries() {
-        queue.async(flags: .barrier) {
-            self.playbackStatusCache = self.playbackStatusCache.filter { !$0.value.isExpired }
-            self.playbackMetadataCache = self.playbackMetadataCache.filter { !$0.value.isExpired }
-            self.groupVolumeCache = self.groupVolumeCache.filter { !$0.value.isExpired }
-            self.playerVolumeCache = self.playerVolumeCache.filter { !$0.value.isExpired }
-
-            if let groupsCache = self.groupsCache, groupsCache.isExpired {
-                self.groupsCache = nil
-            }
-
-            if let playersCache = self.playersCache, playersCache.isExpired {
-                self.playersCache = nil
-            }
-        }
-    }
-
     // MARK: - Cache Statistics
 
     public func getCacheStatistics() -> CacheStatistics {
@@ -283,7 +201,7 @@ public class StateCacheManager {
 
 // MARK: - Cache Statistics
 
-public struct CacheStatistics {
+public struct CacheStatistics: Sendable {
     public let playbackStatusCount: Int
     public let playbackMetadataCount: Int
     public let groupVolumeCount: Int
