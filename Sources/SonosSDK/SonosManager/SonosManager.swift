@@ -18,13 +18,16 @@ public class SonosManager: ObservableObject {
     /// The token manager for OAuth operations
     public let tokenManager: TokenManager
 
-    /// The HTTP client used for API requests
+    /// The HTTP client used for API requests. Calls go over the local
+    /// network while live updates run (see `startLiveUpdates`), otherwise
+    /// to the Sonos cloud.
     public let httpClient: HTTPClientProtocol
 
-    /// Subscription coordinator for WebSocket events
-    public lazy var subscriptionCoordinator: SubscriptionCoordinator = {
-        SubscriptionCoordinator()
-    }()
+    /// Holds the running live client for local command routing.
+    let liveRouter: SonosLiveRouter
+
+    /// Watches the network path while live updates run.
+    let networkObserver = SonosLiveNetworkObserver()
 
     /// State cache for API responses
     public let stateCache = StateCacheManager.shared
@@ -80,7 +83,9 @@ public class SonosManager: ObservableObject {
 
         let tokenMgr = TokenManager(clientKey: key, clientSecret: secret, redirectURI: redirectURI)
         self.tokenManager = tokenMgr
-        self.httpClient = SonosHTTPClient(tokenManager: tokenMgr)
+        let router = SonosLiveRouter()
+        self.liveRouter = router
+        self.httpClient = SonosRoutingHTTPClient(cloud: SonosHTTPClient(tokenManager: tokenMgr), router: router)
 
         // Sync initial auth state
         Task { [weak self] in
@@ -103,7 +108,9 @@ public class SonosManager: ObservableObject {
     /// Initialize with custom HTTP client (for testing)
     public init(client: Client, httpClient: HTTPClientProtocol, tokenManager: TokenManager) {
         self.client = client
-        self.httpClient = httpClient
+        let router = SonosLiveRouter()
+        self.liveRouter = router
+        self.httpClient = SonosRoutingHTTPClient(cloud: httpClient, router: router)
         self.tokenManager = tokenManager
     }
 }

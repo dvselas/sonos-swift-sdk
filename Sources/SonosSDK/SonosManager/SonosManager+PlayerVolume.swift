@@ -7,8 +7,8 @@ import Foundation
 
 extension SonosManager {
 
-    /// Get player volume with automatic caching
-    public func getPlayerVolume(playerId: String, useCache: Bool = true) async throws -> PlayerVolume {
+    /// Get player volume. Pass `useCache: true` to accept a copy up to 10 s old.
+    public func getPlayerVolume(playerId: String, useCache: Bool = false) async throws -> PlayerVolume {
         if useCache, let cached = stateCache.getPlayerVolume(for: playerId) {
             return cached
         }

@@ -7,8 +7,8 @@ import Foundation
 
 extension SonosManager {
 
-    /// Get group volume with automatic caching
-    public func getGroupVolume(groupId: String, useCache: Bool = true) async throws -> GroupVolume {
+    /// Get group volume. Pass `useCache: true` to accept a copy up to 10 s old.
+    public func getGroupVolume(groupId: String, useCache: Bool = false) async throws -> GroupVolume {
         if useCache, let cached = stateCache.getGroupVolume(for: groupId) {
             return cached
         }

@@ -7,8 +7,8 @@ import Foundation
 
 extension SonosManager {
 
-    /// Get playback metadata with automatic caching
-    public func getGroupPlaybackMetadata(groupId: String, useCache: Bool = true) async throws -> PlaybackMetadata {
+    /// Get playback metadata. Pass `useCache: true` to accept a copy up to 30 s old.
+    public func getGroupPlaybackMetadata(groupId: String, useCache: Bool = false) async throws -> PlaybackMetadata {
         if useCache, let cached = stateCache.getPlaybackMetadata(for: groupId) {
             return cached
         }

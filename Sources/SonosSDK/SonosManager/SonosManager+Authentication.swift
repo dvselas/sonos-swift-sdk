@@ -29,10 +29,10 @@ extension SonosManager {
         _ = try await tokenManager.exchangeCode(authorization.code)
     }
 
-    /// Logout and clear all tokens
+    /// Logout, clear all tokens and close local connections
     public func logout() async {
         await tokenManager.clearTokens()
         stateCache.invalidateAll()
-        subscriptionCoordinator.stopAllWebSockets()
+        await stopLiveUpdates()
     }
 }

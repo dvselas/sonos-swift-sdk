@@ -1,5 +1,8 @@
 # Playback Session API - Complete Implementation Guide
 
+> **Note:** the WebSocket/`subscriptionCoordinator` API described here was removed. It never delivered events. For real-time updates see [LIVE_UPDATES.md](LIVE_UPDATES.md).
+
+
 Complete guide for using the Sonos playbackSession API to create custom cloud-based playback experiences in the Sonos Swift SDK.
 
 ## Overview

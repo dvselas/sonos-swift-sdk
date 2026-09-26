@@ -13,6 +13,8 @@ extension SonosManager {
 
     public func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE") async throws {
         try await favoriteService.loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion, action: action)
+        stateCache.invalidatePlaybackStatus(for: groupId)
+        stateCache.invalidatePlaybackMetadata(for: groupId)
     }
 
     public func subscribeToFavorites(householdId: String) async throws {

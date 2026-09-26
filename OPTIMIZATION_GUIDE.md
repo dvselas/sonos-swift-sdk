@@ -1,5 +1,8 @@
 # Sonos Swift SDK - Optimization Guide
 
+> **Note:** the WebSocket/`subscriptionCoordinator` API described here was removed. It never delivered events. For real-time updates see [LIVE_UPDATES.md](LIVE_UPDATES.md).
+
+
 ## Overview
 
 This guide covers the major optimizations implemented in the Sonos Swift SDK, focusing on real-time state updates, efficient caching, and modern Swift concurrency.

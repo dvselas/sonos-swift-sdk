@@ -28,6 +28,13 @@ struct SonosConfiguration {
 }
 ```
 
+## Real-time updates
+
+`SonosManager.startLiveUpdates(householdId:groups:players:)` connects to the
+players on the local network. It streams playback, metadata, volume and grouping
+changes as they happen, and sends commands over the LAN. See
+[LIVE_UPDATES.md](LIVE_UPDATES.md).
+
 ## Installation
 Sonos Swift SDK supports the following installation methods:
 

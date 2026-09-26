@@ -7,15 +7,15 @@ import Foundation
 
 extension SonosManager {
 
-    /// Get playback status with automatic caching
-    public func getGroupPlaybackStatus(groupId: String, useCache: Bool = true) async throws -> PlaybackStatus {
+    /// Get playback status. Pass `useCache: true` to accept a copy up to 5 s old.
+    public func getGroupPlaybackStatus(groupId: String, useCache: Bool = false) async throws -> PlaybackStatus {
         if useCache, let cached = stateCache.getPlaybackStatus(for: groupId) {
             return cached
         }
 
         let status = try await groupPlaybackService.getPlaybackStatus(groupId: groupId)
-        let ttl = TimeInterval(status.availablePlaybackActions.playTtlSec > 0 ? status.availablePlaybackActions.playTtlSec : 5)
-        stateCache.setPlaybackStatus(status, for: groupId, ttl: ttl)
+        // `playTtlSec` is a service policy, not a freshness hint: use the default TTL.
+        stateCache.setPlaybackStatus(status, for: groupId)
         return status
     }
 

@@ -1,5 +1,8 @@
 # Metadata and Cover Image Guide
 
+> **Note:** the WebSocket/`subscriptionCoordinator` API described here was removed. It never delivered events. For real-time updates see [LIVE_UPDATES.md](LIVE_UPDATES.md).
+
+
 Complete guide for fetching metadata and cover images for all content types (music, radio, TV, podcasts, etc.) in the Sonos Swift SDK.
 
 ## Overview

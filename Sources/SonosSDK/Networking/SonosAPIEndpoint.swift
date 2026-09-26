@@ -373,7 +373,7 @@ extension SonosAPIEndpoint {
         case .seekRelative(_, let deltaMillis, let itemId):
             return SeekRelativeBody(deltaMillis: deltaMillis, itemId: itemId)
         case .setPlayModes(_, let playModes):
-            return playModes
+            return SetPlayModesBody(playModes: playModes)
         case .loadLineIn(_, let deviceId, let playOnCompletion):
             return LoadLineInBody(deviceId: deviceId, playOnCompletion: playOnCompletion)
 
@@ -524,6 +524,11 @@ public struct PlayModesBody: Encodable, Sendable {
         self.repeatOne = repeatOne
         self.crossfade = crossfade
     }
+}
+
+/// `setPlayModes` wraps the modes: `{"playModes": {"shuffle": true}}`.
+struct SetPlayModesBody: Encodable, Sendable {
+    let playModes: PlayModesBody
 }
 
 struct LoadLineInBody: Encodable, Sendable {
