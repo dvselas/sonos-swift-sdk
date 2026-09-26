@@ -48,4 +48,13 @@ extension SonosManager {
             await previous.stop()
         }
     }
+
+    /// Stops `client`. Routing only falls back to the cloud if `client` is
+    /// still the running one, so a late cleanup can't stop a newer client.
+    public func stopLiveUpdates(_ client: SonosLiveClient) async {
+        if liveRouter.clear(ifCurrent: client) {
+            stopNetworkObservation()
+        }
+        await client.stop()
+    }
 }

@@ -28,6 +28,15 @@ final class SonosLiveRouter: @unchecked Sendable {
         _client = client
         return previous
     }
+
+    /// Clears the router only if `client` is still the active one.
+    func clear(ifCurrent client: SonosLiveClient) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard _client === client else { return false }
+        _client = nil
+        return true
+    }
 }
 
 final class SonosRoutingHTTPClient: HTTPClientProtocol, @unchecked Sendable {

@@ -228,6 +228,22 @@ final class SonosRoutingHTTPClientTests: XCTestCase {
         }
     }
 
+    func testStoppingAnOldClientKeepsTheNewerOneRouted() async {
+        let manager = SonosManager(
+            client: Client(keyName: "k", key: "k", secret: "s", redirectURI: "r://", callbackURL: "c://"),
+            httpClient: CloudSpy(),
+            tokenManager: TokenManager(clientKey: "k", clientSecret: "s", redirectURI: "r://")
+        )
+        let old = await manager.startLiveUpdates(householdId: "HH", groups: [], players: [])
+        let new = await manager.startLiveUpdates(householdId: "HH", groups: [], players: [])
+
+        await manager.stopLiveUpdates(old)
+        XCTAssertTrue(manager.liveClient === new)
+
+        await manager.stopLiveUpdates(new)
+        XCTAssertNil(manager.liveClient)
+    }
+
     func testFallsBackToCloudWithoutLiveClient() async throws {
         let cloud = CloudSpy()
         let routing = SonosRoutingHTTPClient(cloud: cloud, router: SonosLiveRouter())
