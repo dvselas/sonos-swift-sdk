@@ -61,6 +61,9 @@ extension SonosAPIEndpoint {
         case .loadLineIn(let groupId, let deviceId, let playOnCompletion):
             return SonosLocalRoute("playback", "loadLineIn", .group(groupId),
                                    body: LoadLineInBody(deviceId: deviceId, playOnCompletion: playOnCompletion))
+        case .loadContent(let groupId, let content, let play):
+            return SonosLocalRoute("playback", "loadContent", .group(groupId),
+                                   body: LoadContentBody(content: content, play: play))
 
         // Metadata
         case .getMetadataStatus(let groupId):

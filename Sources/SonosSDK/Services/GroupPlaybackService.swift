@@ -55,6 +55,10 @@ struct GroupPlaybackService {
         try await client.request(.loadLineIn(groupId: groupId, deviceId: deviceId, playOnCompletion: playOnCompletion))
     }
 
+    func loadContent(groupId: String, content: SonosContent, play: Bool) async throws {
+        try await client.request(.loadContent(groupId: groupId, content: content, play: play))
+    }
+
     func subscribe(groupId: String) async throws {
         try await client.request(.subscribeToPlayback(groupId: groupId))
     }

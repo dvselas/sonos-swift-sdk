@@ -35,6 +35,38 @@ players on the local network. It streams playback, metadata, volume and grouping
 changes as they happen, and sends commands over the LAN. See
 [LIVE_UPDATES.md](LIVE_UPDATES.md).
 
+Apps that want the state ready to render use the `SonosLive` product:
+`SonosLiveStore` keeps `@Observable` models per group and room, shows user
+actions optimistically until the players confirm them, and follows sign-in, sleep
+and wake (macOS) or background and foreground (iOS). It talks to Sonos through
+`SonosLiveBackend`, which `SonosManager` implements.
+
+```swift
+let store = SonosLiveStore(backend: sonosManager)
+store.activate()   // connects once signed in
+```
+
+The `SonosDemo` product has `DemoSonosBackend`, a simulated household with made-up
+music for demo mode, UI tests and previews.
+
+## Playing music service items
+
+`loadContent(groupId:content:play:)` plays a music service item by id with one of
+the household's accounts, e.g. a Spotify track on a child's account:
+
+```swift
+let track = SonosContent(kind: .track, serviceId: SonosServiceId.spotify,
+                         objectId: "spotify:track:4uLU6hMCjMI75M1A2tKUQC", accountId: "sn_6")
+try await sonosManager.loadContent(groupId: groupId, content: track)
+```
+
+Only the players answer it (over the local socket while live updates run). Apple
+Music items use `serviceId` 204 and ids like `song:<id>` or `album:<id>`. An
+unknown `accountId` falls back to the service's default account. `SonosLiveStore`
+adds `play(_:onPlayer:)` (the room leaves its group first, the other rooms keep
+the music), `isolate(_:)`, and `discoverAccounts(probe:onPlayer:)`, which finds a
+service's accounts without playing anything.
+
 ## Token storage
 
 The OAuth token is kept in the Keychain (`KeychainTokenStore`, service
@@ -78,6 +110,7 @@ targets: [
 
 | Sonos Swift SDK Version | Sonos Swift Networking Version | Minimum iOS Target  | Minimum macOS Target  | Minimum watchOS Target  | Minimum tvOS Target  |                                   Notes |
 |:--------------------:|:--------------------:|:---------------------------:|:----------------------------:|:----------------------------:|:----------------------------:|:-------------------------------------------------------------------------:|
+| 0.4+ | – | iOS 17 | macOS 14 | x | x | `SonosLive` needs Observation. |
 | 1.x | v1 | iOS 14 | x | x | x | Xcode 12+ is required. |
 
 ## Supported Sonos APIs
