@@ -67,6 +67,8 @@ public enum SonosAPIEndpoint: Sendable {
     case seekRelative(groupId: String, deltaMillis: Int, itemId: String?)
     case setPlayModes(groupId: String, playModes: PlayModesBody)
     case loadLineIn(groupId: String, deviceId: String?, playOnCompletion: Bool?)
+    /// Replaces the queue with a music service item. Players only (local socket).
+    case loadContent(groupId: String, content: SonosContent, play: Bool)
     case subscribeToPlayback(groupId: String)
     case unsubscribeFromPlayback(groupId: String)
 
@@ -226,6 +228,9 @@ extension SonosAPIEndpoint {
             return "/control/api/v1/groups/\(groupId)/playback/playMode"
         case .loadLineIn(let groupId, _, _):
             return "/control/api/v1/groups/\(groupId)/playback/lineIn"
+        case .loadContent(let groupId, _, _):
+            // The cloud has no documented equivalent; see `localRoute`.
+            return "/control/api/v1/groups/\(groupId)/playback/content"
         case .subscribeToPlayback(let groupId):
             return "/control/api/v1/groups/\(groupId)/playback/subscription"
         case .unsubscribeFromPlayback(let groupId):
@@ -376,6 +381,8 @@ extension SonosAPIEndpoint {
             return SetPlayModesBody(playModes: playModes)
         case .loadLineIn(_, let deviceId, let playOnCompletion):
             return LoadLineInBody(deviceId: deviceId, playOnCompletion: playOnCompletion)
+        case .loadContent(_, let content, let play):
+            return LoadContentBody(content: content, play: play)
 
         // Playback Session
         case .createSession(_, let appId, let appContext, let customData):
@@ -636,6 +643,39 @@ public struct AudioClipBody: Encodable, Sendable {
         self.priority = priority
         self.streamUrl = streamUrl
         self.volume = volume
+    }
+}
+
+/// `{type, id: universalMusicObjectId, playbackAction?}`. Without
+/// `playbackAction` the players only load the queue.
+struct LoadContentBody: Encodable, Sendable {
+    struct ObjectId: Encodable, Sendable {
+        let serviceId: String
+        let objectId: String
+        let accountId: String
+
+        enum CodingKeys: String, CodingKey {
+            case objectType = "_objectType"
+            case serviceId, objectId, accountId
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode("universalMusicObjectId", forKey: .objectType)
+            try container.encode(serviceId, forKey: .serviceId)
+            try container.encode(objectId, forKey: .objectId)
+            try container.encode(accountId, forKey: .accountId)
+        }
+    }
+
+    let type: String
+    let id: ObjectId
+    let playbackAction: String?
+
+    init(content: SonosContent, play: Bool) {
+        type = content.kind.rawValue
+        id = ObjectId(serviceId: content.serviceId, objectId: content.objectId, accountId: content.accountId)
+        playbackAction = play ? "PLAY" : nil
     }
 }
 

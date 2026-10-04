@@ -1,0 +1,101 @@
+//
+//  SonosLiveBackend.swift
+//  SonosLive
+//
+//  What `SonosLiveStore` needs from Sonos. `SonosManager` is the real
+//  backend; `SonosDemo` provides a simulated household for demo mode,
+//  UI tests and previews.
+//
+
+import Combine
+import Foundation
+import SonosSDK
+
+/// A running stream of household events: one `SonosLiveClient` in production.
+public protocol SonosLiveSession: AnyObject, Sendable {
+    /// Single-consumer stream of state changes.
+    var events: AsyncStream<SonosLiveEvent> { get }
+    /// Closes the connections but keeps their state (system sleep, app in the background).
+    func suspend() async
+    /// Reconnects after `suspend()` and replays the current state.
+    func resume() async
+}
+
+extension SonosLiveClient: SonosLiveSession {}
+
+public protocol SonosLiveBackend: AnyObject {
+
+    var isAuthenticated: Bool { get }
+    /// The sign-in state now and on every change.
+    var authenticationPublisher: AnyPublisher<Bool, Never> { get }
+
+    // MARK: Reads
+
+    func getHouseholds() async throws -> [Household]
+    func getGroups(householdId: String, useCache: Bool) async throws -> ([Group], [Player])
+    func getGroupPlaybackStatus(groupId: String, useCache: Bool) async throws -> PlaybackStatus
+    func getGroupPlaybackMetadata(groupId: String, useCache: Bool) async throws -> PlaybackMetadata
+    func getGroupVolume(groupId: String, useCache: Bool) async throws -> GroupVolume
+    func getPlayerVolume(playerId: String, useCache: Bool) async throws -> PlayerVolume
+    func getFavorites(householdId: String) async throws -> [Favorite]
+
+    // MARK: Playback
+
+    func play(groupId: String) async throws
+    func pause(groupId: String) async throws
+    func skipToNextTrack(groupId: String) async throws
+    func skipToPreviousTrack(groupId: String) async throws
+    func seek(groupId: String, positionMillis: UInt) async throws
+    func setPlayModes(groupId: String, playModes: PlayModesBody) async throws
+    func loadFavorite(groupId: String, favoriteId: String) async throws
+    /// Replaces the queue with `content`; starts it when `play` is true.
+    func loadContent(groupId: String, content: SonosContent, play: Bool) async throws
+
+    // MARK: Volume
+
+    func setGroupVolume(groupId: String, volume: Int) async throws
+    func setGroupMuted(groupId: String, muted: Bool) async throws
+    func setPlayerVolume(playerId: String, volume: Int) async throws
+    func setPlayerMuted(playerId: String, muted: Bool) async throws
+
+    // MARK: Grouping
+
+    func createGroup(householdId: String, playerIds: [String], musicContextGroupId: String?) async throws -> Group
+    func modifyGroupMembers(groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String]) async throws -> Group
+
+    // MARK: Live updates
+
+    func startLiveSession(
+        householdId: String,
+        groups: [Group],
+        players: [Player],
+        configuration: SonosLiveConfiguration
+    ) async -> any SonosLiveSession
+
+    func stopLiveSession(_ session: any SonosLiveSession) async
+}
+
+extension SonosManager: SonosLiveBackend {
+
+    public var authenticationPublisher: AnyPublisher<Bool, Never> {
+        $isAuthenticated.eraseToAnyPublisher()
+    }
+
+    public func loadFavorite(groupId: String, favoriteId: String) async throws {
+        try await loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: true, action: "REPLACE")
+    }
+
+    public func startLiveSession(
+        householdId: String,
+        groups: [Group],
+        players: [Player],
+        configuration: SonosLiveConfiguration
+    ) async -> any SonosLiveSession {
+        await startLiveUpdates(householdId: householdId, groups: groups, players: players, configuration: configuration)
+    }
+
+    public func stopLiveSession(_ session: any SonosLiveSession) async {
+        guard let client = session as? SonosLiveClient else { return }
+        await stopLiveUpdates(client)
+    }
+}
