@@ -232,7 +232,8 @@ final class SonosRoutingHTTPClientTests: XCTestCase {
         let manager = SonosManager(
             client: Client(keyName: "k", key: "k", secret: "s", redirectURI: "r://", callbackURL: "c://"),
             httpClient: CloudSpy(),
-            tokenManager: TokenManager(clientKey: "k", clientSecret: "s", redirectURI: "r://")
+            tokenManager: TokenManager(clientKey: "k", clientSecret: "s", redirectURI: "r://",
+                                       tokenStore: InMemoryTokenStore())
         )
         let old = await manager.startLiveUpdates(householdId: "HH", groups: [], players: [])
         let new = await manager.startLiveUpdates(householdId: "HH", groups: [], players: [])

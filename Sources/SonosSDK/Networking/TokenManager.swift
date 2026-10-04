@@ -6,13 +6,14 @@
 //
 
 import Foundation
+import os
 
 /// Thread-safe actor managing Sonos OAuth tokens with automatic refresh
 public actor TokenManager {
 
     // MARK: - Types
 
-    /// Internal representation stored in UserDefaults
+    /// Internal representation persisted by the token store
     struct StoredToken: Codable {
         let accessToken: String
         let refreshToken: String
@@ -56,7 +57,12 @@ public actor TokenManager {
     private let clientKey: String
     private let clientSecret: String
     private let redirectURI: String
-    private let userDefaultsKey = "com.sonossdk.token"
+    private let tokenStore: TokenStoring
+    private let legacyDefaults: UserDefaults
+
+    /// Where SDK versions before the Keychain store kept the token, as plaintext
+    static let legacyDefaultsKey = "com.sonossdk.token"
+    private static let logger = Logger(subsystem: "com.sonossdk", category: "TokenManager")
 
     private var currentToken: StoredToken?
     private var refreshTask: Task<String, Error>?
@@ -67,12 +73,23 @@ public actor TokenManager {
 
     // MARK: - Initialization
 
-    public init(clientKey: String, clientSecret: String, redirectURI: String, session: URLSession = .shared) {
+    /// - Parameter tokenStore: Where the token is kept between launches; the Keychain by default.
+    ///   A token left in UserDefaults by an earlier SDK version is moved into it.
+    public init(clientKey: String, clientSecret: String, redirectURI: String, session: URLSession = .shared,
+                tokenStore: TokenStoring = KeychainTokenStore()) {
+        self.init(clientKey: clientKey, clientSecret: clientSecret, redirectURI: redirectURI, session: session,
+                  tokenStore: tokenStore, legacyDefaults: .standard)
+    }
+
+    init(clientKey: String, clientSecret: String, redirectURI: String, session: URLSession = .shared,
+         tokenStore: TokenStoring, legacyDefaults: UserDefaults) {
         self.clientKey = clientKey
         self.clientSecret = clientSecret
         self.redirectURI = redirectURI
         self.session = session
-        self.currentToken = loadFromUserDefaults()
+        self.tokenStore = tokenStore
+        self.legacyDefaults = legacyDefaults
+        self.currentToken = Self.loadToken(from: tokenStore, migratingFrom: legacyDefaults)
     }
 
     // MARK: - Public Methods
@@ -138,7 +155,13 @@ public actor TokenManager {
     public func clearTokens() {
         currentToken = nil
         refreshTask = nil
-        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        do {
+            try tokenStore.deleteTokenData()
+        } catch {
+            Self.logger.error("Failed to delete the stored token: \(String(describing: error), privacy: .public)")
+        }
+        // A token whose migration failed must not come back on the next launch
+        legacyDefaults.removeObject(forKey: Self.legacyDefaultsKey)
         onAuthenticationChanged?(false)
     }
 
@@ -152,7 +175,7 @@ public actor TokenManager {
             expiresAt: Date(timeIntervalSinceNow: TimeInterval(response.expiresIn))
         )
         currentToken = stored
-        saveToUserDefaults(stored)
+        persist(stored)
         onAuthenticationChanged?(true)
     }
 
@@ -242,14 +265,51 @@ public actor TokenManager {
 
     // MARK: - Persistence
 
-    private func loadFromUserDefaults() -> StoredToken? {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else { return nil }
-        return try? JSONDecoder().decode(StoredToken.self, from: data)
+    /// Load the persisted token, first moving one that an earlier SDK version left in UserDefaults into the store
+    private static func loadToken(from store: TokenStoring, migratingFrom defaults: UserDefaults) -> StoredToken? {
+        let legacyData = defaults.data(forKey: legacyDefaultsKey)
+
+        let storedData: Data?
+        do {
+            storedData = try store.loadTokenData()
+        } catch {
+            // Unknown whether the store already holds a token: use the legacy one for now
+            // and leave it in place so a later launch can migrate it.
+            logger.error("Failed to read the stored token: \(String(describing: error), privacy: .public)")
+            return legacyData.flatMap(decodeToken)
+        }
+
+        if let storedData {
+            // The store wins; a leftover plaintext copy is only a liability
+            if legacyData != nil {
+                defaults.removeObject(forKey: legacyDefaultsKey)
+            }
+            return decodeToken(storedData)
+        }
+
+        guard let legacyData else { return nil }
+        guard let legacyToken = decodeToken(legacyData) else {
+            defaults.removeObject(forKey: legacyDefaultsKey)
+            return nil
+        }
+        do {
+            try store.saveTokenData(legacyData)
+            defaults.removeObject(forKey: legacyDefaultsKey)
+        } catch {
+            logger.error("Failed to move the token out of UserDefaults: \(String(describing: error), privacy: .public)")
+        }
+        return legacyToken
     }
 
-    private func saveToUserDefaults(_ token: StoredToken) {
-        if let data = try? JSONEncoder().encode(token) {
-            UserDefaults.standard.set(data, forKey: userDefaultsKey)
+    private static func decodeToken(_ data: Data) -> StoredToken? {
+        try? JSONDecoder().decode(StoredToken.self, from: data)
+    }
+
+    private func persist(_ token: StoredToken) {
+        do {
+            try tokenStore.saveTokenData(JSONEncoder().encode(token))
+        } catch {
+            Self.logger.error("Failed to save the token: \(String(describing: error), privacy: .public)")
         }
     }
 }

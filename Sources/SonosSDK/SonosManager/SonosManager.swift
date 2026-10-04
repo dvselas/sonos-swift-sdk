@@ -78,10 +78,12 @@ public class SonosManager: ObservableObject {
 
     // MARK: - Initialization
 
-    public init(keyName: String, key: String, secret: String, redirectURI: String, callbackURL: String) {
+    /// - Parameter tokenStore: Where the OAuth token is kept between launches; the Keychain by default.
+    public init(keyName: String, key: String, secret: String, redirectURI: String, callbackURL: String,
+                tokenStore: TokenStoring = KeychainTokenStore()) {
         self.client = Client(keyName: keyName, key: key, secret: secret, redirectURI: redirectURI, callbackURL: callbackURL)
 
-        let tokenMgr = TokenManager(clientKey: key, clientSecret: secret, redirectURI: redirectURI)
+        let tokenMgr = TokenManager(clientKey: key, clientSecret: secret, redirectURI: redirectURI, tokenStore: tokenStore)
         self.tokenManager = tokenMgr
         let router = SonosLiveRouter()
         self.liveRouter = router

@@ -31,7 +31,8 @@ final class SonosSDKBasicTests: XCTestCase {
             key: TestConfiguration.key,
             secret: TestConfiguration.secret,
             redirectURI: TestConfiguration.redirectURI,
-            callbackURL: TestConfiguration.callbackURL
+            callbackURL: TestConfiguration.callbackURL,
+            tokenStore: InMemoryTokenStore()
         )
 
         XCTAssertNotNil(manager)

@@ -35,6 +35,15 @@ players on the local network. It streams playback, metadata, volume and grouping
 changes as they happen, and sends commands over the LAN. See
 [LIVE_UPDATES.md](LIVE_UPDATES.md).
 
+## Token storage
+
+The OAuth token is kept in the Keychain (`KeychainTokenStore`, service
+`com.sonossdk.token`). It stays on the device and is readable after the first
+unlock, so background refreshes work on iOS. A token that an earlier version
+stored in `UserDefaults` moves to the Keychain on first launch. To keep it
+elsewhere, pass your own `TokenStoring` to `SonosManager(...tokenStore:)` or
+`TokenManager(...tokenStore:)`. Tests can use `InMemoryTokenStore`.
+
 ## Installation
 Sonos Swift SDK supports the following installation methods:
 
