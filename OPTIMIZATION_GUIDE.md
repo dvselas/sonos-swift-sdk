@@ -427,5 +427,5 @@ All components are thread-safe:
 ## Support
 
 For issues, questions, or contributions:
-- GitHub Issues: [sonos-swift-sdk/issues](https://github.com/JimmyJammed/sonos-swift-sdk/issues)
+- GitHub Issues: [sonos-swift-sdk/issues](https://github.com/vselas/sonos-swift-sdk/issues)
 - Documentation: [docs.sonos.com](https://docs.sonos.com)
