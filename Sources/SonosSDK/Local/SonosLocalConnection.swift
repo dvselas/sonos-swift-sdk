@@ -29,6 +29,13 @@ public struct SonosLiveConfiguration: Sendable {
     public var logger: (@Sendable (String) -> Void)?
     /// Also log every raw frame (verbose).
     public var traceFrames: Bool
+    /// Where the app receives its integration's events. When set, live updates
+    /// run through the Sonos cloud (`SonosCloudLiveClient`) instead of the
+    /// players' local sockets, which published apps may not use.
+    public var eventRelay: (any SonosEventRelaying)?
+    /// The players the app shows; cloud live updates subscribe only to them
+    /// and their groups. `nil` follows the whole household.
+    public var focusPlayerIds: Set<String>?
 
     public init(
         commandTimeout: TimeInterval = 5,
@@ -38,7 +45,9 @@ public struct SonosLiveConfiguration: Sendable {
         maxReconnectDelay: TimeInterval = 60,
         subscriptionRetryDelay: TimeInterval = 15,
         logger: (@Sendable (String) -> Void)? = nil,
-        traceFrames: Bool = false
+        traceFrames: Bool = false,
+        eventRelay: (any SonosEventRelaying)? = nil,
+        focusPlayerIds: Set<String>? = nil
     ) {
         self.commandTimeout = commandTimeout
         self.connectTimeout = connectTimeout
@@ -48,6 +57,8 @@ public struct SonosLiveConfiguration: Sendable {
         self.subscriptionRetryDelay = subscriptionRetryDelay
         self.logger = logger
         self.traceFrames = traceFrames
+        self.eventRelay = eventRelay
+        self.focusPlayerIds = focusPlayerIds
     }
 }
 

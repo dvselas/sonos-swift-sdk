@@ -104,3 +104,21 @@ final class FakeSonosHTTPClient: HTTPClientProtocol, @unchecked Sendable {
         return Data(body(for: endpoint).utf8)
     }
 }
+
+/// An event server that opens every connection at once and sends nothing.
+final class OpenRelay: SonosEventRelaying, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _connections = 0
+
+    var connections: Int {
+        lock.lock(); defer { lock.unlock() }
+        return _connections
+    }
+
+    func connect(token: String) -> AsyncThrowingStream<SonosEventRelayMessage, Error> {
+        lock.lock(); _connections += 1; lock.unlock()
+        let (stream, continuation) = AsyncThrowingStream.makeStream(of: SonosEventRelayMessage.self)
+        continuation.yield(.opened)
+        return stream
+    }
+}

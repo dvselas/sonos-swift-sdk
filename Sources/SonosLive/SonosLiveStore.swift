@@ -79,6 +79,12 @@ public final class SonosLiveStore {
     @ObservationIgnored public var retryInterval: Duration = .seconds(60)
     /// How often `isolate(_:)` reads the topology until it shows the room on its own.
     @ObservationIgnored public var topologyPollInterval: Duration = .milliseconds(250)
+    /// Set before connecting: live updates then run through the Sonos cloud and
+    /// this event server instead of the players' local sockets (published apps).
+    @ObservationIgnored public var eventRelay: (any SonosEventRelaying)?
+    /// The players the app shows. Cloud live updates and the fallback polling
+    /// cover only them and their groups; `nil` covers the whole household.
+    @ObservationIgnored public var focusPlayerIds: Set<String>?
 
     /// - Parameters:
     ///   - traceFrames: Logs every raw socket frame.
@@ -198,7 +204,9 @@ public final class SonosLiveStore {
         let log = self.log
         let configuration = SonosLiveConfiguration(
             logger: { log($0) },
-            traceFrames: traceFrames
+            traceFrames: traceFrames,
+            eventRelay: eventRelay,
+            focusPlayerIds: focusPlayerIds
         )
         let client = await backend.startLiveSession(
             householdId: householdId,
@@ -274,17 +282,17 @@ public final class SonosLiveStore {
         }
     }
 
-    /// Refreshes the groups and players whose socket is down (over the cloud).
+    /// Refreshes the groups and players in focus that aren't live (over the cloud).
     public func pollUnreachable() async {
         guard let householdId else { return }
-        let hasStaleGroups = state.groups.contains { !$0.isLive }
-        let hasStalePlayers = state.players.values.contains { !$0.isLive }
-        guard hasStaleGroups || hasStalePlayers else { return }
+        let staleGroups = { [self] in state.groups.filter { !$0.isLive && inFocus($0) } }
+        let stalePlayers = state.players.values.filter { !$0.isLive && inFocus($0) }
+        guard !staleGroups().isEmpty || !stalePlayers.isEmpty else { return }
 
-        if hasStaleGroups, let topology = try? await backend.getGroups(householdId: householdId, useCache: false) {
+        if !staleGroups().isEmpty, let topology = try? await backend.getGroups(householdId: householdId, useCache: false) {
             state.apply(.topology(groups: topology.0, players: topology.1), at: now())
         }
-        for group in state.groups where !group.isLive {
+        for group in staleGroups() {
             let groupId = group.groupId
             let knownItem = group.playback.status?.itemId
             if let status = try? await backend.getGroupPlaybackStatus(groupId: groupId, useCache: false) {
@@ -298,11 +306,20 @@ public final class SonosLiveStore {
                 state.apply(.groupVolume(groupId: groupId, volume: volume), at: now())
             }
         }
-        for player in state.players.values where !player.isLive {
+        for player in stalePlayers {
             if let volume = try? await backend.getPlayerVolume(playerId: player.id, useCache: false) {
                 state.apply(.playerVolume(playerId: player.id, volume: volume), at: now())
             }
         }
+    }
+
+    private func inFocus(_ group: SonosGroupModel) -> Bool {
+        guard let focusPlayerIds else { return true }
+        return group.playerIds.contains(where: focusPlayerIds.contains)
+    }
+
+    private func inFocus(_ player: SonosPlayerModel) -> Bool {
+        focusPlayerIds?.contains(player.id) ?? true
     }
 
     // MARK: - Playback intents
