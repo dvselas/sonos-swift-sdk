@@ -26,8 +26,9 @@ protocol SonosLocalTransport: AnyObject, Sendable {
 
 protocol SonosLocalTransportFactory: Sendable {
     func makeTransport(url: URL, apiKey: String) -> any SonosLocalTransport
-    /// Hosts whose self-signed certificates are trusted (the household's players).
-    func setTrustedHosts(_ hosts: Set<String>)
+    /// The household's players by host: only they are trusted, each with
+    /// its own certificate (see `SonosPlayerCertificate`).
+    func setTrustedPlayers(_ playerIdsByHost: [String: String])
 }
 
 // MARK: - URLSession implementation
@@ -65,8 +66,8 @@ final class URLSessionSonosLocalTransportFactory: SonosLocalTransportFactory, @u
         return URLSessionSonosLocalTransport(task: task, delegate: delegate)
     }
 
-    func setTrustedHosts(_ hosts: Set<String>) {
-        delegate.setTrustedHosts(hosts)
+    func setTrustedPlayers(_ playerIdsByHost: [String: String]) {
+        delegate.setTrustedPlayers(playerIdsByHost)
     }
 
     deinit {
@@ -149,23 +150,24 @@ final class URLSessionSonosLocalTransport: SonosLocalTransport, @unchecked Senda
 
 // MARK: - Delegate
 
-/// Resolves handshakes and trusts the players' self-signed certificates.
+/// Resolves handshakes and checks the players' certificates.
 final class SonosLocalSessionDelegate: NSObject, URLSessionWebSocketDelegate, @unchecked Sendable {
 
     private let lock = NSLock()
-    private var trustedHosts: Set<String> = []
+    private var trustedPlayers: [String: String] = [:]
     private var openWaiters: [Int: CheckedContinuation<Void, Error>] = [:]
 
-    func setTrustedHosts(_ hosts: Set<String>) {
+    func setTrustedPlayers(_ playerIdsByHost: [String: String]) {
         lock.lock()
-        trustedHosts = Set(hosts.map { $0.lowercased() })
+        trustedPlayers = Dictionary(playerIdsByHost.map { ($0.key.lowercased(), $0.value) }, uniquingKeysWith: { $1 })
         lock.unlock()
     }
 
-    func isTrusted(host: String, port: Int) -> Bool {
+    /// The player expected at `host`, if it is one of the household's on the local API port.
+    func playerId(host: String, port: Int) -> String? {
         lock.lock()
         defer { lock.unlock() }
-        return port == SonosLocalAPI.port && trustedHosts.contains(host.lowercased())
+        return port == SonosLocalAPI.port ? trustedPlayers[host.lowercased()] : nil
     }
 
     func open(_ task: URLSessionWebSocketTask) async throws {
@@ -212,15 +214,20 @@ final class SonosLocalSessionDelegate: NSObject, URLSessionWebSocketDelegate, @u
     }
 
     /// Players present certificates issued by Sonos' private CA, which the
-    /// system doesn't trust. Accept them only for this household's players
-    /// on the local API port; everything else gets default handling.
+    /// system doesn't trust. Accept one only for this household's players
+    /// on the local API port, and only if it is that player's certificate;
+    /// everything else gets default handling.
     private func evaluate(_ challenge: URLAuthenticationChallenge,
                           completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
         let space = challenge.protectionSpace
         guard space.authenticationMethod == NSURLAuthenticationMethodServerTrust,
               let trust = space.serverTrust,
-              isTrusted(host: space.host, port: space.port) else {
+              let playerId = playerId(host: space.host, port: space.port) else {
             completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        guard SonosPlayerCertificate.matches(trust, playerId: playerId) else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
             return
         }
         completionHandler(.useCredential, URLCredential(trust: trust))

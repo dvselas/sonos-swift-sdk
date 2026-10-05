@@ -362,6 +362,51 @@ final class SonosLiveStoreTests: XCTestCase {
         XCTAssertEqual(http.endpoints.filter { $0.hasPrefix("loadFavorite") }.count, 2)
     }
 
+    func testPlaylistsLoadOnceAndStayDuringARefresh() async throws {
+        let http = FakeSonosHTTPClient()
+        let defaults = makeTemporaryDefaults()
+        defaults.set(false, forKey: SonosLiveStore.enabledKey)
+        let store = makeStore(http: http, defaults: defaults)
+        store.state.reset()
+        store.connect()
+        await waitUntil { store.phase == .ready }
+
+        await store.loadPlaylists()
+        XCTAssertEqual(store.playlists.map(\.name), ["Road Trip"])
+        XCTAssertEqual(store.playlistsPhase, .loaded)
+
+        http.failReads = true
+        await store.loadPlaylists()
+        XCTAssertEqual(store.playlists.count, 1, "a failed refresh keeps the last list")
+    }
+
+    func testAPlaylistReplacesTheQueue() async throws {
+        let http = FakeSonosHTTPClient()
+        let store = makeStore(http: http)
+        let kitchen = try XCTUnwrap(store.state.group(coordinatorId: "RINCON_A"))
+
+        try await store.playPlaylist("0", on: kitchen)
+
+        let load = try XCTUnwrap(http.endpoints.first { $0.hasPrefix("loadPlaylist") })
+        XCTAssertTrue(load.contains("RINCON_A:1") && load.contains("\"REPLACE\""), load)
+    }
+
+    func testPlayingAPlaylistRetriesOnceThenExplains() async throws {
+        let http = FakeSonosHTTPClient()
+        http.failCommands = true
+        let store = makeStore(http: http)
+        store.favoriteRetryDelay = .zero
+        let kitchen = try XCTUnwrap(store.state.group(coordinatorId: "RINCON_A"))
+
+        do {
+            try await store.playPlaylist("0", on: kitchen)
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertTrue(error is SonosFavoriteError)
+        }
+        XCTAssertEqual(http.endpoints.filter { $0.hasPrefix("loadPlaylist") }.count, 2)
+    }
+
     func testFavoriteErrorReplacesTheEnqueueFailure() {
         let enqueue = SonosFavoriteError(underlying: SonosError.apiError(errorCode: "ERROR_FAILURE_TO_ENQUEUE", reason: "Internal error setting URI"),
                                          enqueueFailedMessage: "Try again")

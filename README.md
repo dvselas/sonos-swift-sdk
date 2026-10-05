@@ -35,6 +35,12 @@ players on the local network. It streams playback, metadata, volume and grouping
 changes as they happen, and sends commands over the LAN. See
 [LIVE_UPDATES.md](LIVE_UPDATES.md).
 
+Players present a certificate from Sonos' own CA, which the system doesn't
+trust. The SDK accepts it only from the household's players on the local API
+port, and only if it is issued by the "Sonos Device Authentication Root CA" and
+names that player (`CN=<MAC>` from `RINCON_<MAC>01400`). Sonos renews these
+certificates about once a year, so their keys aren't pinned.
+
 Apps that want the state ready to render use the `SonosLive` product:
 `SonosLiveStore` keeps `@Observable` models per group and room, shows user
 actions optimistically until the players confirm them, and follows sign-in, sleep
@@ -46,8 +52,14 @@ let store = SonosLiveStore(backend: sonosManager)
 store.activate()   // connects once signed in
 ```
 
+The store also loads the household's favorites and Sonos playlists
+(`loadFavorites()`, `loadPlaylists()`) and plays them on a group
+(`playFavorite(_:on:)`, `playPlaylist(_:on:)`; a playlist replaces the queue).
+
 The `SonosDemo` product has `DemoSonosBackend`, a simulated household with made-up
-music for demo mode, UI tests and previews.
+music for demo mode, UI tests and previews. Its covers are drawn on the device
+(friendly for children, no network), and `topologyDelay` makes grouping changes
+arrive late, like on real players.
 
 ## Playing music service items
 
@@ -85,7 +97,7 @@ in `Package.swift` add the following:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.4.0")
+    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.5.0")
 ],
 targets: [
     .target(

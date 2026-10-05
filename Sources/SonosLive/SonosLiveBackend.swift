@@ -38,6 +38,8 @@ public protocol SonosLiveBackend: AnyObject {
     func getGroupVolume(groupId: String, useCache: Bool) async throws -> GroupVolume
     func getPlayerVolume(playerId: String, useCache: Bool) async throws -> PlayerVolume
     func getFavorites(householdId: String) async throws -> [Favorite]
+    /// The household's Sonos playlists.
+    func getPlaylists(householdId: String) async throws -> [Playlist]
 
     // MARK: Playback
 
@@ -48,6 +50,8 @@ public protocol SonosLiveBackend: AnyObject {
     func seek(groupId: String, positionMillis: UInt) async throws
     func setPlayModes(groupId: String, playModes: PlayModesBody) async throws
     func loadFavorite(groupId: String, favoriteId: String) async throws
+    /// Replaces the queue with a Sonos playlist and starts it.
+    func loadPlaylist(groupId: String, playlistId: String) async throws
     /// Replaces the queue with `content`; starts it when `play` is true.
     func loadContent(groupId: String, content: SonosContent, play: Bool) async throws
 
@@ -83,6 +87,10 @@ extension SonosManager: SonosLiveBackend {
 
     public func loadFavorite(groupId: String, favoriteId: String) async throws {
         try await loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: true, action: "REPLACE")
+    }
+
+    public func loadPlaylist(groupId: String, playlistId: String) async throws {
+        try await loadPlaylist(groupId: groupId, playlistId: playlistId, playOnCompletion: true, playModes: nil, action: "REPLACE")
     }
 
     public func startLiveSession(

@@ -124,7 +124,7 @@ public enum SonosAPIEndpoint: Sendable {
     // MARK: - Playlists
     case getPlaylists(householdId: String)
     case getPlaylist(householdId: String, playlistId: String)
-    case loadPlaylist(groupId: String, playlistId: String, playOnCompletion: Bool?, playModes: PlayModesBody?)
+    case loadPlaylist(groupId: String, playlistId: String, playOnCompletion: Bool?, playModes: PlayModesBody?, action: String? = nil)
     case subscribeToPlaylists(householdId: String)
     case unsubscribeFromPlaylists(householdId: String)
 
@@ -327,7 +327,7 @@ extension SonosAPIEndpoint {
             return "/control/api/v1/households/\(householdId)/playlists"
         case .getPlaylist(let householdId, let playlistId):
             return "/control/api/v1/households/\(householdId)/playlists/\(playlistId)"
-        case .loadPlaylist(let groupId, _, _, _):
+        case .loadPlaylist(let groupId, _, _, _, _):
             return "/control/api/v1/groups/\(groupId)/playlists"
         case .subscribeToPlaylists(let householdId):
             return "/control/api/v1/households/\(householdId)/playlists/subscription"
@@ -425,8 +425,8 @@ extension SonosAPIEndpoint {
             return LoadFavoriteBody(favoriteId: favoriteId, playOnCompletion: playOnCompletion ?? true, action: action ?? "REPLACE")
 
         // Playlists
-        case .loadPlaylist(_, let playlistId, let playOnCompletion, let playModes):
-            return LoadPlaylistBody(playlistId: playlistId, playOnCompletion: playOnCompletion ?? true, playModes: playModes)
+        case .loadPlaylist(_, let playlistId, let playOnCompletion, let playModes, let action):
+            return LoadPlaylistBody(playlistId: playlistId, playOnCompletion: playOnCompletion ?? true, playModes: playModes, action: action)
 
         // Home Theater
         case .setHomeTheaterOptions(_, let nightMode, let enhanceDialog):
@@ -689,6 +689,8 @@ struct LoadPlaylistBody: Encodable, Sendable {
     let playlistId: String
     let playOnCompletion: Bool
     let playModes: PlayModesBody?
+    /// APPEND (the API default), INSERT, INSERT_NEXT or REPLACE.
+    let action: String?
 }
 
 struct HomeTheaterOptionsBody: Encodable, Sendable {
