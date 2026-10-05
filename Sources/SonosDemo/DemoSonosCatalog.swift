@@ -20,6 +20,7 @@ extension DemoSonosBackend {
             "radio": ("📻", 0xD7B899, 0x8D6E63),
             "moonbeam1": ("🌙", 0x7F6FF0, 0x2D1E6B),
             "moonbeam2": ("🌷", 0xA8E6CF, 0x3BA57A),
+            "moonbeam3": ("🏔️", 0xC9E4FF, 0x5B7DB1),
             "stars": ("⭐️", 0x4A5BC0, 0x141B4D),
             "owl": ("🦉", 0x9C8CD3, 0x3E2F6B),
             "dino": ("🦕", 0xB8E994, 0x38A169),
@@ -59,6 +60,25 @@ extension DemoSonosBackend {
         }
     )
 
+    /// Every episode in one playlist, newest first, like the labels' own
+    /// playlists of an audio drama series: each episode is an album that
+    /// starts with the theme song.
+    static let moonbeamAllEpisodes: Content = {
+        let episodes = [(3, "The Snowy Mountain", "moonbeam3", 3), (2, "The Secret Garden", "moonbeam2", 3),
+                        (1, "The Hidden Lighthouse", "moonbeam1", 4)]
+        let tracks = episodes.flatMap { number, title, cover, chapters in
+            let album = "Episode \(number): \(title)"
+            return [Track(title: "Moonbeam Theme", artist: "Moonbeam Adventures", album: album,
+                          durationMillis: 62_000, imageUrl: artwork(cover))]
+                + (1...chapters).map {
+                    Track(title: "Chapter \($0): \(title)", artist: "Moonbeam Adventures", album: album,
+                          durationMillis: 300_000, imageUrl: artwork(cover))
+                }
+        }
+        return Content(name: "Moonbeam Adventures – All Episodes", serviceId: SonosServiceId.spotify, serviceName: "Spotify",
+                       objectId: "spotify:playlist:demo-moonbeam-all", accountId: "sn_5", tracks: tracks)
+    }()
+
     static let sleepyTimeSongs = Content(
         name: "Sleepy Time Songs", serviceId: SonosServiceId.appleMusic, serviceName: "Apple Music",
         objectId: "playlist:demo-sleepy", accountId: "sn_2",
@@ -96,7 +116,7 @@ extension DemoSonosBackend {
     )
 
     static var defaultFavorites: [(favorite: Favorite, content: Content)] {
-        [morningMix, coffeehouseRadio, moonbeamAdventures, sleepyTimeSongs].enumerated().compactMap { index, content in
+        [morningMix, coffeehouseRadio, moonbeamAdventures, sleepyTimeSongs, moonbeamAllEpisodes].enumerated().compactMap { index, content in
             let json: [String: Any] = [
                 "id": "\(index + 1)",
                 "name": content.name,

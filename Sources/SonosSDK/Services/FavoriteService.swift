@@ -18,8 +18,10 @@ struct FavoriteService {
         return response.items
     }
 
-    func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE") async throws {
-        try await client.request(.loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion, action: action))
+    func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE",
+                      playModes: PlayModesBody? = nil) async throws {
+        try await client.request(.loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion,
+                                               action: action, playModes: playModes))
     }
 
     func subscribe(householdId: String) async throws {

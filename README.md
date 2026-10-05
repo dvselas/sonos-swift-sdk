@@ -54,12 +54,25 @@ store.activate()   // connects once signed in
 
 The store also loads the household's favorites and Sonos playlists
 (`loadFavorites()`, `loadPlaylists()`) and plays them on a group
-(`playFavorite(_:on:)`, `playPlaylist(_:on:)`; a playlist replaces the queue).
+(`playFavorite(_:on:play:)`, `playPlaylist(_:on:)`): they replace the queue and
+play from the first track, without shuffle or repeat. A playlist with thousands
+of tracks takes the players longer to queue than the cloud waits (`504`); the
+store then waits for the new queue instead of loading it again.
+
+For a playlist that holds whole albums one after another, like a label's
+playlist with every episode of an audio drama series
+(`SonosGroupModel.playsAlbumsInSequence`), the store moves album by album:
+`playNextAlbum(_:)`, `playPreviousAlbum(_:)`, `restartAlbum(_:)` and
+`playRandomAlbum(_:)` always start at an album's first track. The Control API
+can't jump to a track by its position, so the group skips track by track while
+paused, until the album changes.
 
 The `SonosDemo` product has `DemoSonosBackend`, a simulated household with made-up
 music for demo mode, UI tests and previews. Its covers are drawn on the device
-(friendly for children, no network), and `topologyDelay` makes grouping changes
-arrive late, like on real players.
+(friendly for children, no network), `topologyDelay` makes grouping changes
+arrive late, like on real players, and "Moonbeam Adventures – All Episodes" is a
+series' playlist; long favorites answer `504` like the cloud
+(`cloudTimeoutTrackCount`).
 
 ## Playing music service items
 
