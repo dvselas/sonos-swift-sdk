@@ -429,6 +429,27 @@ final class SonosLiveStoreTests: XCTestCase {
         XCTAssertEqual(loaded.players.first?.websocketUrl, "wss://10.0.0.1:1443/websocket/api")
     }
 
+    func testWithAnEventServerTheStoreGoesThroughTheCloud() async throws {
+        let http = FakeSonosHTTPClient()
+        let relay = OpenRelay()
+        let store = makeStore(http: http)
+        store.eventRelay = relay
+        store.focusPlayerIds = ["RINCON_C"]
+        store.state.reset()
+        // The relay connection needs a signed-in user.
+        let manager = try XCTUnwrap(store.backend as? SonosManager)
+        await manager.tokenManager.storeToken(from: TokenManager.TokenResponse(
+            accessToken: "A", refreshToken: "R", tokenType: "Bearer", expiresIn: 3600, scope: "playback-control-all"))
+
+        store.connect()
+
+        await waitUntil { store.state.player("RINCON_C")?.isLive == true }
+        XCTAssertEqual(relay.connections, 1)
+        XCTAssertTrue(http.endpoints.contains(#"subscribeToPlayback(groupId: "RINCON_C:5")"#))
+        XCTAssertTrue(http.endpoints.contains(#"getPlaybackStatus(groupId: "RINCON_C:5")"#))
+        await store.disconnect()
+    }
+
     func testConnectLoadsTheHouseholdAndCachesIt() async {
         let defaults = makeTemporaryDefaults()
         defaults.set(false, forKey: SonosLiveStore.enabledKey)

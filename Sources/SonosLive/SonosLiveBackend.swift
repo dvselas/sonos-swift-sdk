@@ -11,7 +11,8 @@ import Combine
 import Foundation
 import SonosSDK
 
-/// A running stream of household events: one `SonosLiveClient` in production.
+/// A running stream of household events: a `SonosLiveClient` (local sockets)
+/// or a `SonosCloudLiveClient` (cloud plus event server) in production.
 public protocol SonosLiveSession: AnyObject, Sendable {
     /// Single-consumer stream of state changes.
     var events: AsyncStream<SonosLiveEvent> { get }
@@ -22,6 +23,7 @@ public protocol SonosLiveSession: AnyObject, Sendable {
 }
 
 extension SonosLiveClient: SonosLiveSession {}
+extension SonosCloudLiveClient: SonosLiveSession {}
 
 public protocol SonosLiveBackend: AnyObject {
 
@@ -99,11 +101,18 @@ extension SonosManager: SonosLiveBackend {
         players: [Player],
         configuration: SonosLiveConfiguration
     ) async -> any SonosLiveSession {
-        await startLiveUpdates(householdId: householdId, groups: groups, players: players, configuration: configuration)
+        if let relay = configuration.eventRelay {
+            return await startCloudLiveUpdates(householdId: householdId, groups: groups, players: players,
+                                               relay: relay, configuration: configuration)
+        }
+        return await startLiveUpdates(householdId: householdId, groups: groups, players: players, configuration: configuration)
     }
 
     public func stopLiveSession(_ session: any SonosLiveSession) async {
-        guard let client = session as? SonosLiveClient else { return }
-        await stopLiveUpdates(client)
+        if let client = session as? SonosLiveClient {
+            await stopLiveUpdates(client)
+        } else if let client = session as? SonosCloudLiveClient {
+            await client.stop()
+        }
     }
 }

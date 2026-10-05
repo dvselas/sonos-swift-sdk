@@ -79,6 +79,44 @@ adds `play(_:onPlayer:)` (the room leaves its group first, the other rooms keep
 the music), `isolate(_:)`, and `discoverAccounts(probe:onPlayer:)`, which finds a
 service's accounts without playing anything.
 
+## Published apps: cloud only
+
+The Sonos terms license the players' local API only "for internal evaluation and
+testing"; publishing an app that uses it needs a separate license from Sonos. A
+published app therefore talks to the cloud only:
+
+- **Sign-in without the secret in the app:** the integration's secret stays on
+  your server, which trades codes and refresh tokens (`POST /sonos/token` with
+  `{"code"}`, `POST /sonos/refresh` with `{"refreshToken"}`, both answering with
+  the Sonos token JSON).
+
+  ```swift
+  let manager = SonosManager(keyName: "MyApp", key: clientKey, redirectURI: redirectURI,
+                             tokenExchange: SonosBackendTokenExchange(baseURL: serverURL))
+  ```
+
+- **Live updates through an event server:** Sonos posts the integration's events
+  to its callback URL. Your server checks `X-Sonos-Event-Signature` and passes
+  each event on to the apps of that household over a WebSocket, one JSON message
+  per event: `{"householdId", "namespace", "type", "targetType", "targetValue",
+  "seq", "body"}`. The app opens the WebSocket with its Sonos token in the
+  `Authorization` header.
+
+  ```swift
+  store.eventRelay = SonosWebSocketEventRelay(url: URL(string: "wss://live.example.com")!)
+  store.focusPlayerIds = ["RINCON_…"]   // subscribe only to what the app shows
+  store.activate()
+  ```
+
+  `SonosCloudLiveClient` reads the state over the Control API, subscribes to the
+  focus groups and players, and resubscribes after every reconnect. Sonos allows
+  1,000 requests a minute per app, for all its users together, so keep the focus
+  small.
+
+A refresh that fails because the network or the server is down keeps the
+token; only a refresh Sonos refuses (400/401) signs the user out. A token that
+expired since the last launch is refreshed at startup.
+
 ## Token storage
 
 The OAuth token is kept in the Keychain (`KeychainTokenStore`, service
@@ -97,7 +135,7 @@ in `Package.swift` add the following:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.5.0")
+    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.6.0")
 ],
 targets: [
     .target(

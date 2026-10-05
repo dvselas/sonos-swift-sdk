@@ -57,4 +57,23 @@ extension SonosManager {
         }
         await client.stop()
     }
+
+    /// Streams the household's state through the cloud: commands go to the
+    /// Control API and events arrive over `relay` (see `SonosCloudLiveClient`).
+    /// Stops a running local client first, so every call goes to the cloud.
+    @discardableResult
+    public func startCloudLiveUpdates(
+        householdId: String,
+        groups: [Group],
+        players: [Player],
+        relay: any SonosEventRelaying,
+        configuration: SonosLiveConfiguration = SonosLiveConfiguration()
+    ) async -> SonosCloudLiveClient {
+        await stopLiveUpdates()
+        let tokenManager = self.tokenManager
+        let client = SonosCloudLiveClient(householdId: householdId, cloud: httpClient, relay: relay,
+                                          token: { try await tokenManager.validToken() }, configuration: configuration)
+        await client.start(groups: groups, players: players)
+        return client
+    }
 }
