@@ -117,7 +117,7 @@ public enum SonosAPIEndpoint: Sendable {
 
     // MARK: - Favorites
     case getFavorites(householdId: String)
-    case loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool?, action: String?)
+    case loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool?, action: String?, playModes: PlayModesBody? = nil)
     case subscribeToFavorites(householdId: String)
     case unsubscribeFromFavorites(householdId: String)
 
@@ -315,7 +315,7 @@ extension SonosAPIEndpoint {
         // Favorites
         case .getFavorites(let householdId):
             return "/control/api/v1/households/\(householdId)/favorites"
-        case .loadFavorite(let groupId, _, _, _):
+        case .loadFavorite(let groupId, _, _, _, _):
             return "/control/api/v1/groups/\(groupId)/favorites"
         case .subscribeToFavorites(let householdId):
             return "/control/api/v1/households/\(householdId)/favorites/subscription"
@@ -421,8 +421,9 @@ extension SonosAPIEndpoint {
             return clip
 
         // Favorites
-        case .loadFavorite(_, let favoriteId, let playOnCompletion, let action):
-            return LoadFavoriteBody(favoriteId: favoriteId, playOnCompletion: playOnCompletion ?? true, action: action ?? "REPLACE")
+        case .loadFavorite(_, let favoriteId, let playOnCompletion, let action, let playModes):
+            return LoadFavoriteBody(favoriteId: favoriteId, playOnCompletion: playOnCompletion ?? true, action: action ?? "REPLACE",
+                                    playModes: playModes)
 
         // Playlists
         case .loadPlaylist(_, let playlistId, let playOnCompletion, let playModes, let action):
@@ -531,6 +532,10 @@ public struct PlayModesBody: Encodable, Sendable {
         self.repeatOne = repeatOne
         self.crossfade = crossfade
     }
+
+    /// Plays from the first track to the last, once: Sonos otherwise keeps the
+    /// group's shuffle and repeat for newly loaded content.
+    public static let inOrder = PlayModesBody(shuffle: false, repeat: false, repeatOne: false)
 }
 
 /// `setPlayModes` wraps the modes: `{"playModes": {"shuffle": true}}`.
@@ -683,6 +688,7 @@ struct LoadFavoriteBody: Encodable, Sendable {
     let favoriteId: String
     let playOnCompletion: Bool
     let action: String
+    let playModes: PlayModesBody?
 }
 
 struct LoadPlaylistBody: Encodable, Sendable {

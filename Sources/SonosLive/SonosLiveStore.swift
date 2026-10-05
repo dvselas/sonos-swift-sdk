@@ -79,6 +79,13 @@ public final class SonosLiveStore {
     @ObservationIgnored public var retryInterval: Duration = .seconds(60)
     /// How often `isolate(_:)` reads the topology until it shows the room on its own.
     @ObservationIgnored public var topologyPollInterval: Duration = .milliseconds(250)
+    /// How long a jump between tracks may take to show (see `SonosLiveStore+Albums`).
+    @ObservationIgnored public var trackChangeTimeout: Duration = .milliseconds(1500)
+    /// How long a favorite or playlist may take to arrive after the cloud gave
+    /// up waiting for the players (see `playFavorite(_:on:play:)`).
+    @ObservationIgnored public var slowLoadTimeout: Duration = .seconds(90)
+    /// Groups that are jumping to another album right now.
+    public internal(set) var movingGroupIds: Set<String> = []
     /// Set before connecting: live updates then run through the Sonos cloud and
     /// this event server instead of the players' local sockets (published apps).
     @ObservationIgnored public var eventRelay: (any SonosEventRelaying)?
@@ -492,12 +499,17 @@ public final class SonosLiveStore {
         }
     }
 
-    /// Plays a favorite on `group`, with one retry: the Sonos cloud now and
-    /// then answers `499 ERROR_FAILURE_TO_ENQUEUE` while a music service's
-    /// session needs a refresh. Track and play state arrive as live events.
-    public func playFavorite(_ favoriteId: String, on group: SonosGroupModel) async throws {
-        try await retryingOnce("loadFavorite") { [backend] in
-            try await backend.loadFavorite(groupId: group.groupId, favoriteId: favoriteId)
+    /// Plays a favorite on `group` from its first track, in order, with one
+    /// retry: the Sonos cloud now and then answers `499 ERROR_FAILURE_TO_ENQUEUE`
+    /// while a music service's session needs a refresh. Track and play state
+    /// arrive as live events. With `play: false` it's only loaded.
+    ///
+    /// A long playlist (thousands of tracks) takes the players longer to queue
+    /// than the cloud waits: it answers `504`, the players finish anyway.
+    /// Then nothing is loaded again; this waits for the new queue instead.
+    public func playFavorite(_ favoriteId: String, on group: SonosGroupModel, play: Bool = true) async throws {
+        try await retryingOnce("loadFavorite", awaiting: group) { [backend] in
+            try await backend.loadFavorite(groupId: group.groupId, favoriteId: favoriteId, play: play)
         }
     }
 
@@ -529,16 +541,23 @@ public final class SonosLiveStore {
     /// Replaces the queue of `group` with a Sonos playlist and plays it,
     /// with one retry like `playFavorite(_:on:)`.
     public func playPlaylist(_ playlistId: String, on group: SonosGroupModel) async throws {
-        try await retryingOnce("loadPlaylist") { [backend] in
+        try await retryingOnce("loadPlaylist", awaiting: group) { [backend] in
             try await backend.loadPlaylist(groupId: group.groupId, playlistId: playlistId)
         }
     }
 
-    /// Runs a cloud load command, once more after `favoriteRetryDelay` if it fails.
-    private func retryingOnce(_ name: String, _ load: () async throws -> Void) async throws {
+    /// Runs a cloud load command, once more after `favoriteRetryDelay` if it
+    /// fails. After a timeout it waits for `group`'s new queue instead.
+    private func retryingOnce(_ name: String, awaiting group: SonosGroupModel, _ load: () async throws -> Void) async throws {
+        let before = Self.queueKey(group.metadata)
         do {
             try await load()
             return
+        } catch SonosError.httpError(let status, let body) where status == 504 {
+            log("[Sonos] \(name) still running after the cloud's timeout: \(body?.errorCode ?? "504")")
+            if try await awaitQueueChange(of: group, from: before) { return }
+            throw SonosFavoriteError(underlying: SonosError.httpError(statusCode: status, body: body),
+                                     enqueueFailedMessage: messages.enqueueFailed)
         } catch {
             log("[Sonos] \(name) first attempt failed: \(error.localizedDescription)")
         }
@@ -549,6 +568,32 @@ public final class SonosLiveStore {
             log("[Sonos] \(name) retry failed: \(error.localizedDescription)")
             throw SonosFavoriteError(underlying: error, enqueueFailedMessage: messages.enqueueFailed)
         }
+    }
+
+    /// Waits up to `slowLoadTimeout` for another queue: live events report it;
+    /// without them the players are asked now and then.
+    private func awaitQueueChange(of group: SonosGroupModel, from before: String) async throws -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: slowLoadTimeout)
+        var lastRead = clock.now
+        while clock.now < deadline {
+            if Self.queueKey(group.metadata) != before { return true }
+            if !group.isLive, clock.now - lastRead >= .seconds(2) {
+                if let metadata = try? await backend.getGroupPlaybackMetadata(groupId: group.groupId, useCache: false) {
+                    group.applyMetadata(metadata)
+                }
+                lastRead = clock.now
+                continue
+            }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        return false
+    }
+
+    /// What a group plays: the container and the track.
+    static func queueKey(_ metadata: PlaybackMetadata?) -> String {
+        let container = metadata?.container
+        return [container?.id?.objectId ?? container?.name ?? "", trackKey(metadata)].joined(separator: "#")
     }
 
     // MARK: - Helpers

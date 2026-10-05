@@ -6,8 +6,10 @@
 //  (App Review has no Sonos system), UI tests and previews. Commands change
 //  the household in memory and come back as live events, like real players:
 //  rooms group and ungroup with Sonos' rules, a coordinator that leaves
-//  hands the music to a new paused group, and `loadContent` falls back to a
-//  service's default account for an unknown account id.
+//  hands the music to a new paused group, `loadContent` falls back to a
+//  service's default account for an unknown account id, favorites and
+//  playlists load in order, and a skip with shuffle on lands on a random
+//  track.
 //
 
 import Combine
@@ -100,6 +102,11 @@ public final class DemoSonosBackend: SonosLiveBackend {
     /// players confirm `createGroup` and `modifyGroupMembers` before
     /// `getGroups` and the topology events show it.
     public var topologyDelay: Duration = .zero
+    /// Picks the track a skip with shuffle on lands on, from the queue's length.
+    public var randomIndex: (Int) -> Int = { Int.random(in: 0..<$0) }
+    /// Favorites with more tracks load, but answer `504 ERROR_COMMAND_TIMEOUT`
+    /// like the Sonos cloud does for playlists with thousands of tracks.
+    public var cloudTimeoutTrackCount = 1_000
 
     public private(set) var rooms: [Room]
     private var groups: [String: GroupState] = [:]
@@ -193,18 +200,22 @@ public final class DemoSonosBackend: SonosLiveBackend {
         emitPlayback(of: state)
     }
 
-    public func loadFavorite(groupId: String, favoriteId: String) async throws {
+    public func loadFavorite(groupId: String, favoriteId: String, play: Bool) async throws {
         guard let entry = favoriteList.first(where: { $0.favorite.id == favoriteId }) else {
             throw DemoSonosError.unknownFavorite(favoriteId)
         }
-        try load(entry.content, groupId: groupId, play: true)
+        try load(entry.content, groupId: groupId, play: play, inOrder: true)
+        if entry.content.tracks.count > cloudTimeoutTrackCount {
+            throw SonosError.httpError(statusCode: 504,
+                                       body: try Self.decode(SonosErrorBody.self, ["errorCode": "ERROR_COMMAND_TIMEOUT"]))
+        }
     }
 
     public func loadPlaylist(groupId: String, playlistId: String) async throws {
         guard let entry = playlistList.first(where: { $0.playlist.id == playlistId }) else {
             throw DemoSonosError.unknownPlaylist(playlistId)
         }
-        try load(entry.content, groupId: groupId, play: true)
+        try load(entry.content, groupId: groupId, play: true, inOrder: true)
     }
 
     public func loadContent(groupId: String, content: SonosContent, play: Bool) async throws {
@@ -347,10 +358,14 @@ public final class DemoSonosBackend: SonosLiveBackend {
         store(GroupState(id: "\(bath):1", coordinatorId: bath, playerIds: [bath], anchor: start))
     }
 
-    private func load(_ content: Content, groupId: String, play: Bool) throws {
+    private func load(_ content: Content, groupId: String, play: Bool, inOrder: Bool = false) throws {
         var state = try group(groupId)
         state.content = content
         state.index = 0
+        if inOrder {
+            state.shuffle = false
+            state.repeat = false
+        }
         state.baseMillis = 0
         state.anchor = now()
         state.playback = play ? .playing : .idle
@@ -368,10 +383,19 @@ public final class DemoSonosBackend: SonosLiveBackend {
         emitPlayback(of: state)
     }
 
+    /// Like the players: with shuffle on, forward lands on a random track; without
+    /// repeat, the queue's first and last tracks are the ends.
     private func skip(groupId: String, by step: Int) throws {
         var state = try group(groupId)
         guard let count = state.content?.tracks.count, count > 0 else { return }
-        state.index = (state.index + step + count) % count
+        if state.shuffle, step > 0, count > 1 {
+            let next = randomIndex(count - 1)
+            state.index = next >= state.index ? next + 1 : next
+        } else if state.repeat {
+            state.index = (state.index + step + count) % count
+        } else {
+            state.index = min(max(state.index + step, 0), count - 1)
+        }
         state.baseMillis = 0
         state.anchor = now()
         store(state)
@@ -454,19 +478,27 @@ public final class DemoSonosBackend: SonosLiveBackend {
         func id(_ objectId: String) -> [String: Any] {
             ["serviceId": content.serviceId, "objectId": objectId, "accountId": content.accountId]
         }
-        var trackJSON: [String: Any] = [
-            "name": track.title,
-            "artist": ["name": track.artist],
-            "album": ["name": track.album],
-            "id": id("\(content.objectId)#\(state.index)"),
-            "service": service,
+        func json(_ track: Track, index: Int) -> [String: Any] {
+            var json: [String: Any] = [
+                "name": track.title,
+                "artist": ["name": track.artist],
+                "album": ["name": track.album],
+                "id": id("\(content.objectId)#\(index)"),
+                "service": service,
+            ]
+            if track.durationMillis > 0 { json["durationMillis"] = track.durationMillis }
+            if let imageUrl = track.imageUrl { json["imageUrl"] = imageUrl }
+            return json
+        }
+        var metadata: [String: Any] = [
+            "container": ["name": content.name, "type": content.objectId.contains("album:") ? "album" : "playlist",
+                          "id": id(content.objectId), "service": service],
+            "currentItem": ["track": json(track, index: state.index)],
         ]
-        if track.durationMillis > 0 { trackJSON["durationMillis"] = track.durationMillis }
-        if let imageUrl = track.imageUrl { trackJSON["imageUrl"] = imageUrl }
-        return try Self.decode(PlaybackMetadata.self, [
-            "container": ["name": content.name, "id": id(content.objectId), "service": service],
-            "currentItem": ["track": trackJSON],
-        ])
+        if !state.shuffle, content.tracks.indices.contains(state.index + 1) {
+            metadata["nextItem"] = ["track": json(content.tracks[state.index + 1], index: state.index + 1)]
+        }
+        return try Self.decode(PlaybackMetadata.self, metadata)
     }
 
     private func groupVolume(of state: GroupState) -> GroupVolume {
