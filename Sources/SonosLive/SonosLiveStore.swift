@@ -77,6 +77,8 @@ public final class SonosLiveStore {
     @ObservationIgnored var isActivated = false
     @ObservationIgnored public var fallbackInterval: Duration = .seconds(15)
     @ObservationIgnored public var retryInterval: Duration = .seconds(60)
+    /// How often `isolate(_:)` reads the topology until it shows the room on its own.
+    @ObservationIgnored public var topologyPollInterval: Duration = .milliseconds(250)
 
     /// - Parameters:
     ///   - traceFrames: Logs every raw socket frame.

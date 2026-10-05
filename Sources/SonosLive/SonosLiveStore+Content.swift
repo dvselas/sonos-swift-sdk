@@ -9,7 +9,9 @@
 //  autoplay: the other rooms keep the music. A coordinator can't simply
 //  leave its group, so the other rooms move to a new group that takes over
 //  the music (`createGroup` with `musicContextGroupId`); the new group
-//  starts paused and is resumed right away.
+//  starts paused and is resumed right away. Sonos refuses to hand over
+//  music it can't copy, e.g. when the group is idle; the other rooms then
+//  leave without it.
 //
 
 import Foundation
@@ -46,9 +48,18 @@ extension SonosLiveStore {
         let others = group.playerIds.filter { $0 != playerId }
         if group.coordinatorId == playerId {
             let wasPlaying = group.isPlaying
-            let moved = try await backend.createGroup(householdId: householdId, playerIds: others,
+            let moved: Group
+            var tookTheMusic = true
+            do {
+                moved = try await backend.createGroup(householdId: householdId, playerIds: others,
                                                       musicContextGroupId: group.groupId)
-            if wasPlaying {
+            } catch SonosError.apiError(let code, let reason) where code == "ERROR_PLAYBACK_FAILED" {
+                log("[Sonos] \(group.name) keeps its music in \(playerId): \(reason ?? code)")
+                moved = try await backend.createGroup(householdId: householdId, playerIds: others,
+                                                      musicContextGroupId: nil)
+                tookTheMusic = false
+            }
+            if wasPlaying && tookTheMusic {
                 do {
                     try await backend.play(groupId: moved.id)
                 } catch {
@@ -97,13 +108,23 @@ extension SonosLiveStore {
         return nil
     }
 
-    /// Reads the topology (over the LAN while live) and returns the room's group id.
+    /// Waits until the room is a group of its own and returns that group's
+    /// id. The players confirm `createGroup` and `modifyGroupMembers` before
+    /// their topology shows the change, so the first reads (over the LAN
+    /// while live) can still list the old group. A topology event that
+    /// arrives meanwhile counts too.
     private func refreshedGroupId(of playerId: String, householdId: String) async throws -> String {
-        let (groups, players) = try await backend.getGroups(householdId: householdId, useCache: false)
-        state.apply(.topology(groups: groups, players: players), at: now())
-        guard let group = groups.first(where: { $0.playerIds == [playerId] }) else {
-            throw SonosLiveError.unknownPlayer(playerId)
+        for attempt in 0..<20 {
+            if attempt > 0 { try await Task.sleep(for: topologyPollInterval) }
+            if let group = state.group(containing: playerId), group.playerIds == [playerId] {
+                return group.groupId
+            }
+            let (groups, players) = try await backend.getGroups(householdId: householdId, useCache: false)
+            if let group = groups.first(where: { $0.playerIds == [playerId] }) {
+                state.apply(.topology(groups: groups, players: players), at: now())
+                return group.id
+            }
         }
-        return group.id
+        throw SonosLiveError.unknownPlayer(playerId)
     }
 }

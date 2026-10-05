@@ -18,6 +18,7 @@ final class SonosLiveContentTests: XCTestCase {
     private let kitchen = "RINCON_DEMO_KITCHEN"
     private let dining = "RINCON_DEMO_DINING"
     private let bath = "RINCON_DEMO_BATH"
+    private let kids = "RINCON_DEMO_KIDS"
 
     private func makeConnectedStore() async -> (SonosLiveStore, DemoSonosBackend) {
         let backend = DemoSonosBackend()
@@ -62,6 +63,47 @@ final class SonosLiveContentTests: XCTestCase {
         await waitUntil { store.state.group(containing: self.dining)?.playerIds == [self.dining] }
         XCTAssertFalse(try XCTUnwrap(store.state.group(containing: dining)).isPlaying)
         XCTAssertTrue(try XCTUnwrap(store.state.group(coordinatorId: kitchen)).isPlaying)
+    }
+
+    func testIsolatingAMemberWaitsUntilThePlayersReportIt() async throws {
+        let (store, backend) = await makeConnectedStore()
+        // Real players confirm the change before `getGroups` shows it.
+        backend.topologyDelay = .milliseconds(300)
+        store.topologyPollInterval = .milliseconds(20)
+
+        let groupId = try await store.isolate(dining)
+
+        let diningGroup = try XCTUnwrap(store.state.group(containing: dining))
+        XCTAssertEqual(diningGroup.playerIds, [dining])
+        XCTAssertEqual(diningGroup.groupId, groupId)
+        XCTAssertEqual(store.state.group(coordinatorId: kitchen)?.playerIds, [kitchen])
+    }
+
+    func testIsolatingTheCoordinatorWaitsUntilThePlayersReportIt() async throws {
+        let (store, backend) = await makeConnectedStore()
+        backend.topologyDelay = .milliseconds(300)
+        store.topologyPollInterval = .milliseconds(20)
+        let originalId = try XCTUnwrap(store.state.group(coordinatorId: kitchen)).groupId
+
+        let groupId = try await store.isolate(kitchen)
+
+        XCTAssertEqual(groupId, originalId)
+        XCTAssertEqual(store.state.group(containing: kitchen)?.playerIds, [kitchen])
+        await waitUntil { store.state.group(containing: self.dining)?.isPlaying == true }
+    }
+
+    func testTheCoordinatorOfAnIdleGroupLeavesToo() async throws {
+        let (store, backend) = await makeConnectedStore()
+        let bathGroupId = try XCTUnwrap(store.state.group(coordinatorId: bath)).groupId
+        _ = try await backend.modifyGroupMembers(groupId: bathGroupId, playerIdsToAdd: [kids], playerIdsToRemove: [])
+        await waitUntil { store.state.group(containing: self.kids)?.playerIds == [self.bath, self.kids] }
+
+        // Sonos refuses to hand over the music of an idle group.
+        let groupId = try await store.isolate(bath)
+
+        XCTAssertEqual(groupId, bathGroupId)
+        XCTAssertEqual(store.state.group(containing: bath)?.playerIds, [bath])
+        await waitUntil { store.state.group(containing: self.kids)?.playerIds == [self.kids] }
     }
 
     func testIsolatingARoomOnItsOwnChangesNothing() async throws {
