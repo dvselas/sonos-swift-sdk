@@ -94,7 +94,7 @@ final class SonosLiveClientTests: XCTestCase {
         XCTAssertEqual(subscriptions("10.0.0.2"), ["playerVolume:1@RINCON_B"])
         XCTAssertEqual(subscriptions("10.0.0.3"), ["playback:1@RINCON_C:5", "playbackMetadata:1@RINCON_C:5",
                                                    "groupVolume:1@RINCON_C:5", "playerVolume:1@RINCON_C"])
-        XCTAssertEqual(factory.trustedHosts, ["10.0.0.1", "10.0.0.2", "10.0.0.3"])
+        XCTAssertEqual(factory.trustedPlayers, ["10.0.0.1": "RINCON_A", "10.0.0.2": "RINCON_B", "10.0.0.3": "RINCON_C"])
         await client.stop()
     }
 

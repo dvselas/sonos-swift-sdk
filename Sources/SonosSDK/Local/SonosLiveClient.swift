@@ -216,7 +216,9 @@ public actor SonosLiveClient {
                 result[player.id] = url
             }
         }
-        factory.setTrustedHosts(Set(endpoints.values.compactMap { $0.host }))
+        factory.setTrustedPlayers(endpoints.reduce(into: [:]) { result, endpoint in
+            if let host = endpoint.value.host { result[host] = endpoint.key }
+        })
 
         for (playerId, url) in endpoints {
             if let existing = connections[playerId] {

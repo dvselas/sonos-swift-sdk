@@ -39,6 +39,33 @@ final class SonosLiveContentTests: XCTestCase {
         XCTAssertTrue(kitchenGroup.isLive)
     }
 
+    func testDemoPlaylistsPlayInARoom() async throws {
+        let (store, _) = await makeConnectedStore()
+        await store.loadPlaylists()
+        XCTAssertEqual(store.playlists.map(\.name), ["Road Trip Sing-Along", "Bedtime Stories"])
+        XCTAssertNil(store.playlists.first?.imageUrl, "Sonos playlists have no image of their own")
+
+        let bathGroup = try XCTUnwrap(store.state.group(coordinatorId: bath))
+        try await store.playPlaylist(try XCTUnwrap(store.playlists.last).id, on: bathGroup)
+
+        await waitUntil { store.state.group(coordinatorId: self.bath)?.contentName == "Bedtime Stories" }
+        XCTAssertTrue(try XCTUnwrap(store.state.group(coordinatorId: bath)).isPlaying)
+    }
+
+    func testDemoCoversAreDrawnWithoutTheNetwork() async throws {
+        let (store, _) = await makeConnectedStore()
+        await store.loadFavorites()
+
+        for favorite in store.favorites {
+            let url = try XCTUnwrap(favorite.imageUrl)
+            XCTAssertTrue(url.hasPrefix("data:image/png;base64,"), "\(favorite.name) has a drawn cover")
+            let png = try XCTUnwrap(Data(base64Encoded: String(url.dropFirst("data:image/png;base64,".count))))
+            XCTAssertEqual(Array(png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+        }
+        let playing = try XCTUnwrap(store.state.group(coordinatorId: kitchen))
+        XCTAssertTrue(playing.metadata?.currentItem?.track?.imageUrl?.hasPrefix("data:image/png") == true)
+    }
+
     func testIsolatingTheCoordinatorHandsTheMusicToTheOtherRooms() async throws {
         let (store, _) = await makeConnectedStore()
         let before = try XCTUnwrap(store.state.group(coordinatorId: kitchen))

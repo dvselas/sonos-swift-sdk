@@ -479,17 +479,57 @@ public final class SonosLiveStore {
     /// then answers `499 ERROR_FAILURE_TO_ENQUEUE` while a music service's
     /// session needs a refresh. Track and play state arrive as live events.
     public func playFavorite(_ favoriteId: String, on group: SonosGroupModel) async throws {
-        do {
+        try await retryingOnce("loadFavorite") { [backend] in
             try await backend.loadFavorite(groupId: group.groupId, favoriteId: favoriteId)
+        }
+    }
+
+    // MARK: - Playlists
+
+    public typealias PlaylistsPhase = FavoritesPhase
+
+    /// The household's Sonos playlists, kept like the favorites.
+    public private(set) var playlists: [Playlist] = []
+    public private(set) var playlistsPhase: PlaylistsPhase = .idle
+    @ObservationIgnored private var isLoadingPlaylists = false
+
+    /// Loads the Sonos playlists; later calls refresh them while the last
+    /// list stays on screen.
+    public func loadPlaylists() async {
+        guard let householdId, !isLoadingPlaylists else { return }
+        isLoadingPlaylists = true
+        defer { isLoadingPlaylists = false }
+        if playlists.isEmpty { playlistsPhase = .loading }
+        do {
+            playlists = try await backend.getPlaylists(householdId: householdId)
+            playlistsPhase = .loaded
+        } catch {
+            log("[Sonos] Could not load playlists: \(error.localizedDescription)")
+            if playlists.isEmpty { playlistsPhase = .failed(error.localizedDescription) }
+        }
+    }
+
+    /// Replaces the queue of `group` with a Sonos playlist and plays it,
+    /// with one retry like `playFavorite(_:on:)`.
+    public func playPlaylist(_ playlistId: String, on group: SonosGroupModel) async throws {
+        try await retryingOnce("loadPlaylist") { [backend] in
+            try await backend.loadPlaylist(groupId: group.groupId, playlistId: playlistId)
+        }
+    }
+
+    /// Runs a cloud load command, once more after `favoriteRetryDelay` if it fails.
+    private func retryingOnce(_ name: String, _ load: () async throws -> Void) async throws {
+        do {
+            try await load()
             return
         } catch {
-            log("[Sonos] loadFavorite first attempt failed: \(error.localizedDescription)")
+            log("[Sonos] \(name) first attempt failed: \(error.localizedDescription)")
         }
         try? await Task.sleep(for: favoriteRetryDelay)
         do {
-            try await backend.loadFavorite(groupId: group.groupId, favoriteId: favoriteId)
+            try await load()
         } catch {
-            log("[Sonos] loadFavorite retry failed: \(error.localizedDescription)")
+            log("[Sonos] \(name) retry failed: \(error.localizedDescription)")
             throw SonosFavoriteError(underlying: error, enqueueFailedMessage: messages.enqueueFailed)
         }
     }
@@ -543,7 +583,8 @@ public final class SonosLiveStore {
 
 // MARK: - Errors
 
-/// Replaces the cloud's cryptic enqueue failure with copy the user can act on.
+/// Thrown when a favorite or playlist doesn't load. Replaces the cloud's
+/// cryptic enqueue failure with copy the user can act on.
 public struct SonosFavoriteError: LocalizedError {
     public let underlying: Error
     let enqueueFailedMessage: String

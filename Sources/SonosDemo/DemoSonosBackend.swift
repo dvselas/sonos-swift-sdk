@@ -107,6 +107,7 @@ public final class DemoSonosBackend: SonosLiveBackend {
     private var reportedTopology: ([Group], [Player])?
     private var playerVolumes: [String: (volume: Int, muted: Bool)] = [:]
     private var favoriteList: [(favorite: Favorite, content: Content)] = []
+    private var playlistList: [(playlist: Playlist, content: Content)] = []
     private var sequence = 100
     private var session: DemoLiveSession?
     private let now: () -> Date
@@ -154,6 +155,10 @@ public final class DemoSonosBackend: SonosLiveBackend {
         favoriteList.map(\.favorite)
     }
 
+    public func getPlaylists(householdId: String) async throws -> [Playlist] {
+        playlistList.map(\.playlist)
+    }
+
     // MARK: - Playback
 
     public func play(groupId: String) async throws {
@@ -191,6 +196,13 @@ public final class DemoSonosBackend: SonosLiveBackend {
     public func loadFavorite(groupId: String, favoriteId: String) async throws {
         guard let entry = favoriteList.first(where: { $0.favorite.id == favoriteId }) else {
             throw DemoSonosError.unknownFavorite(favoriteId)
+        }
+        try load(entry.content, groupId: groupId, play: true)
+    }
+
+    public func loadPlaylist(groupId: String, playlistId: String) async throws {
+        guard let entry = playlistList.first(where: { $0.playlist.id == playlistId }) else {
+            throw DemoSonosError.unknownPlaylist(playlistId)
         }
         try load(entry.content, groupId: groupId, play: true)
     }
@@ -325,6 +337,7 @@ public final class DemoSonosBackend: SonosLiveBackend {
 
         let favorites = Self.defaultFavorites
         favoriteList = favorites
+        playlistList = Self.defaultPlaylists
         store(GroupState(id: "\(living):1", coordinatorId: living, playerIds: [living],
                          content: favorites[0].content, playback: .playing, baseMillis: 42_000, anchor: start))
         store(GroupState(id: "\(kitchen):1", coordinatorId: kitchen, playerIds: [kitchen, dining],
@@ -536,6 +549,7 @@ public enum DemoSonosError: LocalizedError, Equatable {
     case unknownGroup(String)
     case unknownPlayer(String)
     case unknownFavorite(String)
+    case unknownPlaylist(String)
     case emptyGroup
 
     public var errorDescription: String? {
@@ -543,6 +557,7 @@ public enum DemoSonosError: LocalizedError, Equatable {
         case .unknownGroup(let id): return "Unknown demo group \(id)."
         case .unknownPlayer(let id): return "Unknown demo speaker \(id)."
         case .unknownFavorite(let id): return "Unknown demo favorite \(id)."
+        case .unknownPlaylist(let id): return "Unknown demo playlist \(id)."
         case .emptyGroup: return "A group needs at least one speaker."
         }
     }

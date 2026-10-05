@@ -110,7 +110,7 @@ final class FakeTransportFactory: SonosLocalTransportFactory, @unchecked Sendabl
 
     private let lock = NSLock()
     private var _transports: [FakeTransport] = []
-    private var _trustedHosts: Set<String> = []
+    private var _trustedPlayers: [String: String] = [:]
     private let responder: FakeTransport.Responder
     private let failingHosts: Set<String>
 
@@ -127,9 +127,9 @@ final class FakeTransportFactory: SonosLocalTransportFactory, @unchecked Sendabl
         return transport
     }
 
-    func setTrustedHosts(_ hosts: Set<String>) {
+    func setTrustedPlayers(_ playerIdsByHost: [String: String]) {
         lock.lock()
-        _trustedHosts = hosts
+        _trustedPlayers = playerIdsByHost
         lock.unlock()
     }
 
@@ -138,9 +138,9 @@ final class FakeTransportFactory: SonosLocalTransportFactory, @unchecked Sendabl
         return _transports
     }
 
-    var trustedHosts: Set<String> {
+    var trustedPlayers: [String: String] {
         lock.lock(); defer { lock.unlock() }
-        return _trustedHosts
+        return _trustedPlayers
     }
 
     /// The newest transport opened to `host`.

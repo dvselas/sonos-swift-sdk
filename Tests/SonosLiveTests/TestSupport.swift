@@ -67,6 +67,8 @@ final class FakeSonosHTTPClient: HTTPClientProtocol, @unchecked Sendable {
         switch endpoint {
         case .getHouseholds:
             return #"{"households":[{"id":"HH","name":"Home"}]}"#
+        case .getPlaylists:
+            return #"{"version":"1","playlists":[{"id":"0","name":"Road Trip","type":"playlist","trackCount":12}]}"#
         case .getGroups:
             return #"{"groups":[{"id":"RINCON_C:5","name":"Office","coordinatorId":"RINCON_C","playerIds":["RINCON_C"]}],"players":[{"id":"RINCON_C","name":"Office"}]}"#
         case .getPlaybackStatus:

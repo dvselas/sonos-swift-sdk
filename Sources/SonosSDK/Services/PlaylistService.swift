@@ -22,8 +22,10 @@ struct PlaylistService {
         try await client.request(.getPlaylist(householdId: householdId, playlistId: playlistId))
     }
 
-    func loadPlaylist(groupId: String, playlistId: String, playOnCompletion: Bool? = true, playModes: PlayModesBody? = nil) async throws {
-        try await client.request(.loadPlaylist(groupId: groupId, playlistId: playlistId, playOnCompletion: playOnCompletion, playModes: playModes))
+    func loadPlaylist(groupId: String, playlistId: String, playOnCompletion: Bool? = true, playModes: PlayModesBody? = nil,
+                      action: String? = nil) async throws {
+        try await client.request(.loadPlaylist(groupId: groupId, playlistId: playlistId, playOnCompletion: playOnCompletion,
+                                               playModes: playModes, action: action))
     }
 
     func subscribe(householdId: String) async throws {

@@ -11,8 +11,27 @@ import SonosSDK
 
 extension DemoSonosBackend {
 
-    static func artwork(_ seed: String) -> String {
-        "https://picsum.photos/seed/sonos-demo-\(seed)/600/600"
+    /// Kid-friendly covers by name, drawn once (see `DemoArtwork`).
+    private static let covers: [String: String] = {
+        let designs: [String: (emoji: String, top: UInt32, bottom: UInt32)] = [
+            "golden": ("🌻", 0xFFE29A, 0xFFA94D),
+            "boats": ("⛵️", 0x9ADCFF, 0x4A90E2),
+            "sunday": ("🥞", 0xFFD3B6, 0xFF8C94),
+            "radio": ("📻", 0xD7B899, 0x8D6E63),
+            "moonbeam1": ("🌙", 0x7F6FF0, 0x2D1E6B),
+            "moonbeam2": ("🌷", 0xA8E6CF, 0x3BA57A),
+            "stars": ("⭐️", 0x4A5BC0, 0x141B4D),
+            "owl": ("🦉", 0x9C8CD3, 0x3E2F6B),
+            "dino": ("🦕", 0xB8E994, 0x38A169),
+            "car": ("🚗", 0xFFB3C7, 0xE84A7F),
+            "rocket": ("🚀", 0x89F7FE, 0x66A6FF),
+            "teddy": ("🧸", 0xF6D365, 0xFDA085),
+        ]
+        return designs.compactMapValues { DemoArtwork.url($0.emoji, top: $0.top, bottom: $0.bottom) }
+    }()
+
+    static func artwork(_ name: String) -> String? {
+        covers[name]
     }
 
     static let morningMix = Content(
@@ -28,7 +47,7 @@ extension DemoSonosBackend {
     static let coffeehouseRadio = Content(
         name: "Coffeehouse Radio", serviceId: "303", serviceName: "Sonos Radio",
         objectId: "radio:demo-coffeehouse", accountId: "sn_1",
-        tracks: [Track(title: "Coffeehouse Radio", artist: "Live", album: "", durationMillis: 0, imageUrl: artwork("coffee"))]
+        tracks: [Track(title: "Coffeehouse Radio", artist: "Live", album: "", durationMillis: 0, imageUrl: artwork("radio"))]
     )
 
     static let moonbeamAdventures = Content(
@@ -49,6 +68,33 @@ extension DemoSonosBackend {
         ]
     )
 
+    static let dinoSongs = [
+        Track(title: "Stomp Stomp Roar", artist: "The Tiny Rexes", album: "Dino Songs", durationMillis: 142_000, imageUrl: artwork("dino")),
+        Track(title: "Long Neck Lullaby", artist: "The Tiny Rexes", album: "Dino Songs", durationMillis: 171_000, imageUrl: artwork("dino")),
+    ]
+
+    // Sonos playlists mix services; like real ones they have no image of their own.
+
+    static let roadTripPlaylist = Content(
+        name: "Road Trip Sing-Along", serviceId: "", serviceName: "Sonos",
+        objectId: "SQ:1", accountId: "",
+        tracks: [
+            Track(title: "Are We There Yet?", artist: "The Backseat Band", album: "Road Trip", durationMillis: 158_000, imageUrl: artwork("car")),
+            Track(title: "Rocket to the Moon", artist: "Little Astronauts", album: "Countdown", durationMillis: 176_000, imageUrl: artwork("rocket")),
+            dinoSongs[0],
+        ]
+    )
+
+    static let bedtimeStoriesPlaylist = Content(
+        name: "Bedtime Stories", serviceId: "", serviceName: "Sonos",
+        objectId: "SQ:2", accountId: "",
+        tracks: [
+            Track(title: "Teddy's Big Dream", artist: "Story Time Friends", album: "Teddy Tales", durationMillis: 612_000, imageUrl: artwork("teddy")),
+            sleepyTimeSongs.tracks[1],
+            moonbeamAdventures.tracks[0],
+        ]
+    )
+
     static var defaultFavorites: [(favorite: Favorite, content: Content)] {
         [morningMix, coffeehouseRadio, moonbeamAdventures, sleepyTimeSongs].enumerated().compactMap { index, content in
             let json: [String: Any] = [
@@ -60,6 +106,19 @@ extension DemoSonosBackend {
             ]
             guard let favorite = try? decode(Favorite.self, json) else { return nil }
             return (favorite, content)
+        }
+    }
+
+    static var defaultPlaylists: [(playlist: Playlist, content: Content)] {
+        [roadTripPlaylist, bedtimeStoriesPlaylist].compactMap { content in
+            let json: [String: Any] = [
+                "id": content.objectId.replacingOccurrences(of: "SQ:", with: ""),
+                "name": content.name,
+                "type": "playlist",
+                "trackCount": content.tracks.count,
+            ]
+            guard let playlist = try? decode(Playlist.self, json) else { return nil }
+            return (playlist, content)
         }
     }
 
@@ -76,13 +135,7 @@ extension DemoSonosBackend {
                       durationMillis: 840_000, imageUrl: artwork("moonbeam2"))
             }
         )
-        catalog["spotify:album:demo-dino-songs"] = (
-            "Dino Songs",
-            [
-                Track(title: "Stomp Stomp Roar", artist: "The Tiny Rexes", album: "Dino Songs", durationMillis: 142_000, imageUrl: artwork("dino")),
-                Track(title: "Long Neck Lullaby", artist: "The Tiny Rexes", album: "Dino Songs", durationMillis: 171_000, imageUrl: artwork("dino")),
-            ]
-        )
+        catalog["spotify:album:demo-dino-songs"] = ("Dino Songs", dinoSongs)
         return catalog
     }
 }
