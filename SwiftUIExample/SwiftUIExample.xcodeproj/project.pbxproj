@@ -549,7 +549,7 @@
 		};
 		F81C7F402DBA3A9F00CDB4C6 /* XCRemoteSwiftPackageReference "sonos-swift-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/dvselas/sonos-swift-sdk";
+			repositoryURL = "https://github.com/vselas/sonos-swift-sdk";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 0.0.9;

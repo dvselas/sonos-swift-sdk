@@ -1,8 +1,8 @@
 Sonos Swift SDK
 ========
 
-[![Swift](https://github.com/JimmyJammed/sonos-swift-sdk/actions/workflows/swift.yml/badge.svg)](https://github.com/JimmyJammed/sonos-swift-sdk/actions/workflows/swift.yml)
-[![SwiftLint](https://github.com/JimmyJammed/sonos-swift-sdk/actions/workflows/SwiftLint.yml/badge.svg)](https://github.com/JimmyJammed/sonos-swift-sdk/actions/workflows/SwiftLint.yml)
+[![Swift](https://github.com/vselas/sonos-swift-sdk/actions/workflows/swift.yml/badge.svg)](https://github.com/vselas/sonos-swift-sdk/actions/workflows/swift.yml)
+[![SwiftLint](https://github.com/vselas/sonos-swift-sdk/actions/workflows/SwiftLint.yml/badge.svg)](https://github.com/vselas/sonos-swift-sdk/actions/workflows/SwiftLint.yml)
 [![License](https://img.shields.io/cocoapods/l/Swinject.svg?style=flat)](http://cocoapods.org/pods/Swinject)
 [![Platforms](https://img.shields.io/badge/platform-iOS%20%7C%20macOS-lightgrey.svg)](http://cocoapods.org/pods/Swinject)
 [![Swift Version](https://img.shields.io/badge/Swift-5.0-F16D39.svg?style=flat)](https://developer.apple.com/swift)
@@ -85,26 +85,23 @@ in `Package.swift` add the following:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/JimmyJammed/sonos-swift-sdk", from: "1.0.0")
+    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.4.0")
 ],
 targets: [
     .target(
         name: "MyProject",
-        dependencies: ["sonos-swift-sdk"]
+        dependencies: [
+            .product(name: "SonosSDK", package: "sonos-swift-sdk"),
+            .product(name: "SonosLive", package: "sonos-swift-sdk"),   // optional
+        ]
     )
     ...
 ]
 ```
 
-###### Note: Sonos Swift SDK requires the following Swift Package dependencies:
+###### Note: Sonos Swift SDK requires the following Swift Package dependency:
 
-[AFNetworking](https://github.com/AFNetworking/AFNetworking)
-<br />
 [BetterSafariView](https://github.com/stleamist/BetterSafariView)
-<br />
-[Swinject](https://github.com/Swinject/Swinject)
-<br />
-[SwiftyJSON](https://github.com/SwiftyJSON/SwiftyJSON)
 
 ## Requirements
 
@@ -144,14 +141,14 @@ Sonos Swift SDK includes a suite of unit tests within the Tests subdirectory.
 
 ## Contribution Guide
 
-A guide to [submit issues](https://github.com/JimmyJammed/sonos-swift-sdk/issues), to ask general questions, or to [open pull requests](https://github.com/JimmyJammed/sonos-swift-sdk/pulls) are [here](CONTRIBUTING.md).
+A guide to [submit issues](https://github.com/vselas/sonos-swift-sdk/issues), to ask general questions, or to [open pull requests](https://github.com/vselas/sonos-swift-sdk/pulls) are [here](CONTRIBUTING.md).
 
 ## Credits
 
-Sonos Swift SDK is an open source project and unaffiliated with Sonos Inc.
+Sonos Swift SDK is an open source project and unaffiliated with Sonos Inc. It is a fork of [JimmyJammed/sonos-swift-sdk](https://github.com/JimmyJammed/sonos-swift-sdk) by James Hickman.
 
-And most of all, thanks to Sonos Swift SDK's [growing list of contributors](https://github.com/JimmyJammed/sonos-swift-sdk/contributors).
+And most of all, thanks to Sonos Swift SDK's [growing list of contributors](https://github.com/vselas/sonos-swift-sdk/graphs/contributors).
 
 ## License
 
-Sonos Swift SDK is released under the MIT license. See [LICENSE](https://github.com/JimmyJammed/sonos-swift-sdk/blob/master/LICENSE) for details.
+Sonos Swift SDK is released under the MIT license. See [LICENSE](LICENSE) for details.

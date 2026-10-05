@@ -7,7 +7,7 @@ Get up and running with real-time Sonos control in minutes!
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/JimmyJammed/sonos-swift-sdk.git", from: "1.0.0")
+    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.4.0")
 ]
 ```
 
