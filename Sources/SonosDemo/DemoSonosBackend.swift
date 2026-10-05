@@ -96,9 +96,15 @@ public final class DemoSonosBackend: SonosLiveBackend {
     ]
     /// What `loadContent` plays for an `objectId`; unknown ids play a generic track.
     public var catalog: [String: (name: String, tracks: [Track])] = DemoSonosBackend.defaultCatalog
+    /// How long the household takes to report a grouping change. Real
+    /// players confirm `createGroup` and `modifyGroupMembers` before
+    /// `getGroups` and the topology events show it.
+    public var topologyDelay: Duration = .zero
 
     public private(set) var rooms: [Room]
     private var groups: [String: GroupState] = [:]
+    /// What topology reads return while a grouping change is still unreported.
+    private var reportedTopology: ([Group], [Player])?
     private var playerVolumes: [String: (volume: Int, muted: Bool)] = [:]
     private var favoriteList: [(favorite: Favorite, content: Content)] = []
     private var sequence = 100
@@ -124,7 +130,7 @@ public final class DemoSonosBackend: SonosLiveBackend {
     }
 
     public func getGroups(householdId: String, useCache: Bool) async throws -> ([Group], [Player]) {
-        topology()
+        reportedTopology ?? topology()
     }
 
     public func getGroupPlaybackStatus(groupId: String, useCache: Bool) async throws -> PlaybackStatus {
@@ -244,7 +250,13 @@ public final class DemoSonosBackend: SonosLiveBackend {
 
     public func createGroup(householdId: String, playerIds: [String], musicContextGroupId: String?) async throws -> Group {
         guard let coordinator = playerIds.first else { throw DemoSonosError.emptyGroup }
+        let before = topology()
         let context = musicContextGroupId.flatMap { groups[$0] }
+        if let context, context.content == nil {
+            // Like real players: an idle group has no music to hand over.
+            throw SonosError.apiError(errorCode: "ERROR_PLAYBACK_FAILED",
+                                      reason: "musicContextGroupId music context content cannot be copied")
+        }
         detach(playerIds)
         var created = GroupState(id: nextGroupId(coordinator), coordinatorId: coordinator, playerIds: playerIds, anchor: now())
         if let context {
@@ -255,13 +267,14 @@ public final class DemoSonosBackend: SonosLiveBackend {
             created.playback = context.content == nil ? .idle : .paused
         }
         store(created)
-        emitTopology()
+        reportTopologyChange(since: before)
         emitGroup(created)
         return model(of: created)
     }
 
     public func modifyGroupMembers(groupId: String, playerIdsToAdd: [String], playerIdsToRemove: [String]) async throws -> Group {
         let current = try group(groupId)
+        let before = topology()
         detach(playerIdsToAdd.filter { !current.playerIds.contains($0) })
         var state = groups.removeValue(forKey: current.id) ?? current
         state.playerIds = state.playerIds.filter { !playerIdsToRemove.contains($0) }
@@ -274,7 +287,7 @@ public final class DemoSonosBackend: SonosLiveBackend {
             state.id = nextGroupId(next)
         }
         if !state.playerIds.isEmpty { store(state) }
-        emitTopology()
+        reportTopologyChange(since: before)
         groups.values.forEach(emitGroup)
         return model(of: state)
     }
@@ -467,6 +480,22 @@ public final class DemoSonosBackend: SonosLiveBackend {
     private func emitTopology() {
         let (groups, players) = topology()
         emit(.topology(groups: groups, players: players))
+    }
+
+    /// Reports a grouping change at once, or after `topologyDelay`: until
+    /// then reads return the topology from `before`, and the groups' state
+    /// follows the new topology like it does on real players.
+    private func reportTopologyChange(since before: ([Group], [Player])) {
+        guard topologyDelay > .zero else { return emitTopology() }
+        if reportedTopology == nil { reportedTopology = before }
+        let delay = topologyDelay
+        Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard let self else { return }
+            reportedTopology = nil
+            emitTopology()
+            groups.values.forEach(emitGroup)
+        }
     }
 
     private func emitGroup(_ state: GroupState) {
