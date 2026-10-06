@@ -94,6 +94,30 @@ public class SonosManager: ObservableObject {
                   tokenManager: TokenManager(clientKey: key, redirectURI: redirectURI, exchange: tokenExchange, tokenStore: tokenStore))
     }
 
+    /// Local-only mode: talks to the players on the local network and never to
+    /// the cloud, so it needs no Sonos account, no sign-in and no server. Players
+    /// are found over Bonjour; every call goes to their local API, and
+    /// `isAuthenticated` is always true. Live updates run over the players'
+    /// sockets as usual (`startLiveUpdates`).
+    ///
+    /// The Sonos terms license the players' local API only "for internal
+    /// evaluation and testing"; publishing an app that uses it needs a separate
+    /// license from Sonos.
+    ///
+    /// - Parameters:
+    ///   - localAPIKey: Sent to the players with every call (`X-Sonos-Api-Key`);
+    ///     use your integration's key.
+    ///   - discovery: How players are found; Bonjour (`_sonos._tcp`) by default.
+    public convenience init(keyName: String, localAPIKey key: String,
+                            discovery: any SonosPlayerDiscovering = SonosBonjourDiscovery()) {
+        let tokenManager = TokenManager(clientKey: key, clientSecret: "", redirectURI: "", tokenStore: InMemoryTokenStore(),
+                                        legacyDefaults: UserDefaults(suiteName: "com.sonossdk.local-only") ?? .standard)
+        self.init(client: Client(keyName: keyName, key: key, secret: "", redirectURI: "", callbackURL: ""),
+                  cloud: SonosLocalHTTPClient(apiKey: key, discovery: discovery),
+                  tokenManager: tokenManager, routesContentLocally: true)
+        isAuthenticated = true
+    }
+
     private init(client: Client, tokenManager tokenMgr: TokenManager) {
         self.client = client
         self.tokenManager = tokenMgr
@@ -121,11 +145,15 @@ public class SonosManager: ObservableObject {
     }
 
     /// Initialize with custom HTTP client (for testing)
-    public init(client: Client, httpClient: HTTPClientProtocol, tokenManager: TokenManager) {
+    public convenience init(client: Client, httpClient: HTTPClientProtocol, tokenManager: TokenManager) {
+        self.init(client: client, cloud: httpClient, tokenManager: tokenManager, routesContentLocally: false)
+    }
+
+    init(client: Client, cloud: HTTPClientProtocol, tokenManager: TokenManager, routesContentLocally: Bool) {
         self.client = client
         let router = SonosLiveRouter()
         self.liveRouter = router
-        self.httpClient = SonosRoutingHTTPClient(cloud: httpClient, router: router)
+        self.httpClient = SonosRoutingHTTPClient(cloud: cloud, router: router, routesContentLocally: routesContentLocally)
         self.tokenManager = tokenManager
     }
 }

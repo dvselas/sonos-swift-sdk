@@ -11,10 +11,16 @@ extension SonosManager {
         try await favoriteService.getFavorites(householdId: householdId)
     }
 
-    /// Loads a favorite; `playModes` sets shuffle and repeat for it, otherwise
-    /// the group keeps its current ones.
-    public func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE",
-                             playModes: PlayModesBody? = nil) async throws {
+    /// Loads a favorite; the group keeps its shuffle and repeat.
+    public func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool? = true, action: String? = "REPLACE") async throws {
+        try await loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion, action: action,
+                               playModes: nil)
+    }
+
+    /// Loads a favorite; `playModes` sets shuffle and repeat for it, nil keeps
+    /// the group's current ones.
+    public func loadFavorite(groupId: String, favoriteId: String, playOnCompletion: Bool?, action: String?,
+                             playModes: PlayModesBody?) async throws {
         try await favoriteService.loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: playOnCompletion,
                                                action: action, playModes: playModes)
         stateCache.invalidatePlaybackStatus(for: groupId)

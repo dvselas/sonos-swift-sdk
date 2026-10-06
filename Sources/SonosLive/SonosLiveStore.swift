@@ -187,7 +187,7 @@ public final class SonosLiveStore {
             await begin(householdId: household.id, groups: groups, players: players)
         } catch {
             guard !Task.isCancelled else { return }
-            log("[Sonos] Could not load the household from the cloud: \(error.localizedDescription)")
+            log("[Sonos] Could not load the household: \(error.localizedDescription)")
             if let cached = SonosTopologyCache.load(from: defaults) {
                 log("[Sonos] Starting from the last known speakers")
                 await begin(householdId: cached.householdId, groups: cached.groups, players: cached.players)

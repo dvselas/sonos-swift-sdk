@@ -15,6 +15,9 @@ import Foundation
 public struct SonosLiveConfiguration: Sendable {
     /// Seconds to wait for a command's reply.
     public var commandTimeout: TimeInterval
+    /// Seconds to wait for loading a favorite or Sonos playlist in local-only
+    /// mode: a playlist with thousands of tracks keeps the player busy for a while.
+    public var loadTimeout: TimeInterval
     /// Seconds to wait for the WebSocket handshake.
     public var connectTimeout: TimeInterval
     /// Seconds between keepalive pings on an idle connection.
@@ -47,9 +50,11 @@ public struct SonosLiveConfiguration: Sendable {
         logger: (@Sendable (String) -> Void)? = nil,
         traceFrames: Bool = false,
         eventRelay: (any SonosEventRelaying)? = nil,
-        focusPlayerIds: Set<String>? = nil
+        focusPlayerIds: Set<String>? = nil,
+        loadTimeout: TimeInterval = 20
     ) {
         self.commandTimeout = commandTimeout
+        self.loadTimeout = loadTimeout
         self.connectTimeout = connectTimeout
         self.pingInterval = pingInterval
         self.initialReconnectDelay = initialReconnectDelay
@@ -187,7 +192,7 @@ actor SonosLocalConnection {
 
         return try await withCheckedThrowingContinuation { continuation in
             pending[cmdId] = continuation
-            let timeout = configuration.commandTimeout
+            let timeout = command.timeout ?? configuration.commandTimeout
             timeouts[cmdId] = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
                 guard !Task.isCancelled else { return }

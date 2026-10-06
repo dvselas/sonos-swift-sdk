@@ -295,4 +295,49 @@ final class SonosRoutingHTTPClientTests: XCTestCase {
         XCTAssertTrue(cloud.calls.isEmpty)
         await client.stop()
     }
+
+    func testLocalOnlyModeLoadsFavoritesOverTheCoordinatorsSocket() async throws {
+        let cloud = CloudSpy()
+        let router = SonosLiveRouter()
+        let factory = FakeTransportFactory()
+        let client = SonosLiveClient(householdId: FakePlayer.householdId, apiKey: "k", configuration: fastConfiguration(), factory: factory)
+        _ = router.replace(with: client)
+        await client.start(groups: FakePlayer.groups, players: FakePlayer.players)
+        await eventually { await client.isLive(groupId: "RINCON_C:5") }
+        let load = SonosAPIEndpoint.loadFavorite(groupId: "RINCON_C:5", favoriteId: "7", playOnCompletion: false,
+                                                 action: "REPLACE", playModes: .inOrder)
+
+        try await SonosRoutingHTTPClient(cloud: cloud, router: router, routesContentLocally: true).request(load)
+
+        XCTAssertTrue(cloud.calls.isEmpty)
+        let sent = factory.latest(host: "10.0.0.3")?.sentHeaders.first { $0["command"] as? String == "loadFavorite" }
+        XCTAssertEqual(sent?["namespace"] as? String, "favorites:1")
+        XCTAssertEqual(sent?["groupId"] as? String, "RINCON_C:5")
+
+        try await SonosRoutingHTTPClient(cloud: cloud, router: router).request(load)
+        XCTAssertEqual(cloud.calls.count, 1, "with the cloud, loading stays in the cloud")
+        await client.stop()
+    }
+
+    func testASlowLoadReadsLikeTheClouds504() async throws {
+        let factory = FakeTransportFactory(responder: { header, text in
+            header["command"] as? String == "loadPlaylist" ? [] : FakePlayer.respond(header: header, text: text)
+        })
+        var configuration = fastConfiguration()
+        configuration.loadTimeout = 0.3
+        let client = SonosLiveClient(householdId: FakePlayer.householdId, apiKey: "k", configuration: configuration, factory: factory)
+        let router = SonosLiveRouter()
+        _ = router.replace(with: client)
+        await client.start(groups: FakePlayer.groups, players: FakePlayer.players)
+        await eventually { await client.isLive(groupId: "RINCON_C:5") }
+
+        do {
+            try await SonosRoutingHTTPClient(cloud: CloudSpy(), router: router, routesContentLocally: true)
+                .request(.loadPlaylist(groupId: "RINCON_C:5", playlistId: "3", playOnCompletion: true, playModes: nil))
+            XCTFail("expected a timeout")
+        } catch SonosError.httpError(let status, _) {
+            XCTAssertEqual(status, 504)
+        }
+        await client.stop()
+    }
 }
