@@ -92,6 +92,20 @@ adds `play(_:onPlayer:)` (the room leaves its group first, the other rooms keep
 the music), `isolate(_:)`, and `discoverAccounts(probe:onPlayer:)`, which finds a
 service's accounts without playing anything.
 
+`matchMusicServiceAccount(householdId:account:)` finds the household's account for
+a music service user, e.g. after a sign-in through the service's Sonos endpoint,
+which hands out `userIdHashCode` and `nickname`:
+
+```swift
+let account = try await sonosManager.matchMusicServiceAccount(
+    householdId: householdId,
+    account: MusicServiceAccountBody(serviceId: SonosServiceId.spotify, userIdHashCode: hash, nickname: "Thore"))
+// account.accountId == "sn_10": play with exactly that account
+```
+
+The players answer it over their local socket; without a `linkCode` it only looks
+for an account the household already has.
+
 ## Local-only mode (testing)
 
 Without a Sonos account, a sign-in or a server, a manager can talk to the
@@ -174,7 +188,7 @@ in `Package.swift` add the following:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.8.0")
+    .package(url: "https://github.com/vselas/sonos-swift-sdk", from: "0.9.0")
 ],
 targets: [
     .target(
@@ -214,7 +228,7 @@ Here is a list of the supported Sonos API's in Sonos Swift SDK:
 	* [ ] [Group Volume](https://developer.sonos.com/reference/control-api/group-volume/)
 	* [ ] [Home Theater](https://developer.sonos.com/reference/control-api/hometheater/)
 	* [x] [Households](https://developer.sonos.com/reference/control-api/households/)
-	* [ ] [Music Service Accounts](https://developer.sonos.com/reference/control-api/musicserviceaccounts/)
+	* [x] [Music Service Accounts](https://developer.sonos.com/reference/control-api/musicserviceaccounts/) (`match`)
 	* [ ] [Playback](https://developer.sonos.com/reference/control-api/playback/)
 	* [ ] [Playback Metadata](https://developer.sonos.com/reference/control-api/playback-metadata/)
 	* [ ] [Playback Session](https://developer.sonos.com/reference/control-api/playbacksession/)

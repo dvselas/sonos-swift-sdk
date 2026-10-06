@@ -97,6 +97,10 @@ extension SonosAPIEndpoint {
             return SonosLocalRoute("playerVolume", "setRelativeVolume", .player(playerId),
                                    body: RelativeVolumeBody(volumeDelta: volumeDelta))
 
+        // Music service accounts
+        case .matchMusicServiceAccount(let householdId, let account):
+            return SonosLocalRoute("musicServiceAccounts", "match", .household(householdId), body: account)
+
         default:
             return nil
         }
@@ -138,8 +142,7 @@ extension SonosAPIEndpoint {
              .setGroupMembers(let householdId, _),
              .getFavorites(let householdId),
              .getPlaylists(let householdId),
-             .getPlaylist(let householdId, _),
-             .matchMusicServiceAccount(let householdId, _):
+             .getPlaylist(let householdId, _):
             return .household(householdId)
         case .duckPlayerVolume(let playerId),
              .unduckPlayerVolume(let playerId),
