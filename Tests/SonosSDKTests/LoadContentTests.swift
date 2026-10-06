@@ -38,6 +38,18 @@ final class LoadContentTests: XCTestCase {
         XCTAssertNil(body["playbackAction"])
     }
 
+    func testReplacingOmitsTheQueueAction() throws {
+        let body = try json(SonosAPIEndpoint.loadContent(groupId: "G:1", content: album, play: true).body)
+        XCTAssertNil(body["queueAction"])
+    }
+
+    /// Only `queueAction` appends; `action` and other names are ignored and replace the queue.
+    func testAppendingSendsTheQueueAction() throws {
+        let body = try json(SonosAPIEndpoint.loadContent(groupId: "G:1", content: album, play: false, queueAction: .append).body)
+        XCTAssertEqual(body["queueAction"] as? String, "APPEND")
+        XCTAssertNil(body["playbackAction"])
+    }
+
     func testRoutesToTheGroupCoordinatorsSocket() throws {
         let route = try XCTUnwrap(SonosAPIEndpoint.loadContent(groupId: "RINCON_A:7", content: album, play: true).localRoute)
         XCTAssertEqual(route.namespace, "playback")

@@ -123,6 +123,7 @@ extension DemoSonosBackend {
                 "description": content.serviceName,
                 "imageUrl": content.tracks.first?.imageUrl ?? "",
                 "service": ["id": content.serviceId, "name": content.serviceName],
+                "resource": ["type": content.tracks.first?.durationMillis == 0 ? FavoriteResource.stream : "PLAYLIST"],
             ]
             guard let favorite = try? decode(Favorite.self, json) else { return nil }
             return (favorite, content)

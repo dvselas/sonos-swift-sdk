@@ -200,25 +200,25 @@ public final class DemoSonosBackend: SonosLiveBackend {
         emitPlayback(of: state)
     }
 
-    public func loadFavorite(groupId: String, favoriteId: String, play: Bool) async throws {
+    public func loadFavorite(groupId: String, favoriteId: String, play: Bool, queueAction: SonosQueueAction) async throws {
         guard let entry = favoriteList.first(where: { $0.favorite.id == favoriteId }) else {
             throw DemoSonosError.unknownFavorite(favoriteId)
         }
-        try load(entry.content, groupId: groupId, play: play, inOrder: true)
+        try load(entry.content, groupId: groupId, play: play, queueAction: queueAction, inOrder: true)
         if entry.content.tracks.count > cloudTimeoutTrackCount {
             throw SonosError.httpError(statusCode: 504,
                                        body: try Self.decode(SonosErrorBody.self, ["errorCode": "ERROR_COMMAND_TIMEOUT"]))
         }
     }
 
-    public func loadPlaylist(groupId: String, playlistId: String) async throws {
+    public func loadPlaylist(groupId: String, playlistId: String, play: Bool, queueAction: SonosQueueAction) async throws {
         guard let entry = playlistList.first(where: { $0.playlist.id == playlistId }) else {
             throw DemoSonosError.unknownPlaylist(playlistId)
         }
-        try load(entry.content, groupId: groupId, play: true, inOrder: true)
+        try load(entry.content, groupId: groupId, play: play, queueAction: queueAction, inOrder: true)
     }
 
-    public func loadContent(groupId: String, content: SonosContent, play: Bool) async throws {
+    public func loadContent(groupId: String, content: SonosContent, play: Bool, queueAction: SonosQueueAction) async throws {
         let known = accounts[content.serviceId] ?? []
         let accountId = known.contains(content.accountId) ? content.accountId : (known.first ?? content.accountId)
         let entry = catalog[content.objectId]
@@ -231,7 +231,7 @@ public final class DemoSonosBackend: SonosLiveBackend {
             tracks: entry?.tracks ?? [Track(title: content.objectId, artist: Self.serviceName(content.serviceId),
                                             album: "", durationMillis: 180_000)]
         )
-        try load(item, groupId: groupId, play: play)
+        try load(item, groupId: groupId, play: play, queueAction: queueAction)
     }
 
     // MARK: - Volume
@@ -358,8 +358,30 @@ public final class DemoSonosBackend: SonosLiveBackend {
         store(GroupState(id: "\(bath):1", coordinatorId: bath, playerIds: [bath], anchor: start))
     }
 
-    private func load(_ content: Content, groupId: String, play: Bool, inOrder: Bool = false) throws {
+    /// Like the players: added tracks keep the queue's name and the current
+    /// track, and a playing group pauses unless asked to play.
+    private func load(_ content: Content, groupId: String, play: Bool, queueAction: SonosQueueAction,
+                      inOrder: Bool = false) throws {
         var state = try group(groupId)
+        if queueAction != .replace, let queued = state.content, !queued.tracks.isEmpty {
+            var tracks = queued.tracks
+            tracks.insert(contentsOf: content.tracks, at: queueAction == .append ? tracks.endIndex : state.index + 1)
+            state.content = Content(name: queued.name, serviceId: queued.serviceId, serviceName: queued.serviceName,
+                                    objectId: queued.objectId, accountId: queued.accountId, tracks: tracks)
+            if inOrder {
+                state.shuffle = false
+                state.repeat = false
+            }
+            let playback: SonosPlaybackState = play ? .playing : (state.playback == .playing ? .paused : state.playback)
+            if playback != state.playback {
+                state.baseMillis = position(of: state)
+                state.anchor = now()
+                state.playback = playback
+            }
+            store(state)
+            emitGroup(state)
+            return
+        }
         state.content = content
         state.index = 0
         if inOrder {

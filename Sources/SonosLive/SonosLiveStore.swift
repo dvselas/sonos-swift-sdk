@@ -509,7 +509,7 @@ public final class SonosLiveStore {
     /// Then nothing is loaded again; this waits for the new queue instead.
     public func playFavorite(_ favoriteId: String, on group: SonosGroupModel, play: Bool = true) async throws {
         try await retryingOnce("loadFavorite", awaiting: group) { [backend] in
-            try await backend.loadFavorite(groupId: group.groupId, favoriteId: favoriteId, play: play)
+            try await backend.loadFavorite(groupId: group.groupId, favoriteId: favoriteId, play: play, queueAction: .replace)
         }
     }
 
@@ -542,7 +542,7 @@ public final class SonosLiveStore {
     /// with one retry like `playFavorite(_:on:)`.
     public func playPlaylist(_ playlistId: String, on group: SonosGroupModel) async throws {
         try await retryingOnce("loadPlaylist", awaiting: group) { [backend] in
-            try await backend.loadPlaylist(groupId: group.groupId, playlistId: playlistId)
+            try await backend.loadPlaylist(groupId: group.groupId, playlistId: playlistId, play: true, queueAction: .replace)
         }
     }
 
