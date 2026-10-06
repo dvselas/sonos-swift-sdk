@@ -67,11 +67,13 @@ extension SonosManager {
         stateCache.invalidatePlaybackMetadata(for: groupId)
     }
 
-    /// Replaces the group's queue with `content` and, with `play`, starts it.
-    /// Only the players answer this (over the local socket while live updates
-    /// run); without `play` nothing is heard, but the queue is still replaced.
-    public func loadContent(groupId: String, content: SonosContent, play: Bool = true) async throws {
-        try await groupPlaybackService.loadContent(groupId: groupId, content: content, play: play)
+    /// Loads `content` into the group's queue (replacing it unless `queueAction`
+    /// says otherwise) and, with `play`, starts it. Only the players answer this
+    /// (over the local socket while live updates run); without `play` nothing
+    /// is heard, but the queue still changes, and a playing group pauses.
+    public func loadContent(groupId: String, content: SonosContent, play: Bool = true,
+                            queueAction: SonosQueueAction = .replace) async throws {
+        try await groupPlaybackService.loadContent(groupId: groupId, content: content, play: play, queueAction: queueAction)
         stateCache.invalidatePlaybackStatus(for: groupId)
         stateCache.invalidatePlaybackMetadata(for: groupId)
     }

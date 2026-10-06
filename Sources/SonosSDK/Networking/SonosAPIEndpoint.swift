@@ -67,8 +67,8 @@ public enum SonosAPIEndpoint: Sendable {
     case seekRelative(groupId: String, deltaMillis: Int, itemId: String?)
     case setPlayModes(groupId: String, playModes: PlayModesBody)
     case loadLineIn(groupId: String, deviceId: String?, playOnCompletion: Bool?)
-    /// Replaces the queue with a music service item. Players only (local socket).
-    case loadContent(groupId: String, content: SonosContent, play: Bool)
+    /// Loads a music service item into the queue (replacing it by default). Players only (local socket).
+    case loadContent(groupId: String, content: SonosContent, play: Bool, queueAction: SonosQueueAction = .replace)
     case subscribeToPlayback(groupId: String)
     case unsubscribeFromPlayback(groupId: String)
 
@@ -228,7 +228,7 @@ extension SonosAPIEndpoint {
             return "/control/api/v1/groups/\(groupId)/playback/playMode"
         case .loadLineIn(let groupId, _, _):
             return "/control/api/v1/groups/\(groupId)/playback/lineIn"
-        case .loadContent(let groupId, _, _):
+        case .loadContent(let groupId, _, _, _):
             // The cloud has no documented equivalent; see `localRoute`.
             return "/control/api/v1/groups/\(groupId)/playback/content"
         case .subscribeToPlayback(let groupId):
@@ -381,8 +381,8 @@ extension SonosAPIEndpoint {
             return SetPlayModesBody(playModes: playModes)
         case .loadLineIn(_, let deviceId, let playOnCompletion):
             return LoadLineInBody(deviceId: deviceId, playOnCompletion: playOnCompletion)
-        case .loadContent(_, let content, let play):
-            return LoadContentBody(content: content, play: play)
+        case .loadContent(_, let content, let play, let queueAction):
+            return LoadContentBody(content: content, play: play, queueAction: queueAction)
 
         // Playback Session
         case .createSession(_, let appId, let appContext, let customData):
@@ -651,8 +651,9 @@ public struct AudioClipBody: Encodable, Sendable {
     }
 }
 
-/// `{type, id: universalMusicObjectId, playbackAction?}`. Without
-/// `playbackAction` the players only load the queue.
+/// `{type, id: universalMusicObjectId, playbackAction?, queueAction?}`. Without
+/// `playbackAction` the players only load the queue; without `queueAction`
+/// they replace it.
 struct LoadContentBody: Encodable, Sendable {
     struct ObjectId: Encodable, Sendable {
         let serviceId: String
@@ -676,11 +677,13 @@ struct LoadContentBody: Encodable, Sendable {
     let type: String
     let id: ObjectId
     let playbackAction: String?
+    let queueAction: String?
 
-    init(content: SonosContent, play: Bool) {
+    init(content: SonosContent, play: Bool, queueAction: SonosQueueAction = .replace) {
         type = content.kind.rawValue
         id = ObjectId(serviceId: content.serviceId, objectId: content.objectId, accountId: content.accountId)
         playbackAction = play ? "PLAY" : nil
+        self.queueAction = queueAction == .replace ? nil : queueAction.rawValue
     }
 }
 

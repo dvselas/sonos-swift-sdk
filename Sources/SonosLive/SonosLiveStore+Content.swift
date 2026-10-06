@@ -34,7 +34,7 @@ extension SonosLiveStore {
     /// Plays `content` in the room `playerId`, which leaves its group first.
     public func play(_ content: SonosContent, onPlayer playerId: String) async throws {
         let groupId = try await isolate(playerId)
-        try await backend.loadContent(groupId: groupId, content: content, play: true)
+        try await backend.loadContent(groupId: groupId, content: content, play: true, queueAction: .replace)
     }
 
     /// Makes `playerId` a group of its own and returns that group's id. The
@@ -87,7 +87,7 @@ extension SonosLiveStore {
         for candidate in candidates {
             let content = SonosContent(kind: probe.kind, serviceId: probe.serviceId,
                                        objectId: probe.objectId, accountId: candidate)
-            try await backend.loadContent(groupId: group.groupId, content: content, play: false)
+            try await backend.loadContent(groupId: group.groupId, content: content, play: false, queueAction: .replace)
             if let used = await loadedAccount(of: probe, groupId: group.groupId) {
                 accounts.insert(used)
             }

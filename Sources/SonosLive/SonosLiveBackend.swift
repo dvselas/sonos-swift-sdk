@@ -51,12 +51,12 @@ public protocol SonosLiveBackend: AnyObject {
     func skipToPreviousTrack(groupId: String) async throws
     func seek(groupId: String, positionMillis: UInt) async throws
     func setPlayModes(groupId: String, playModes: PlayModesBody) async throws
-    /// Replaces the queue with a favorite, in order (no shuffle, no repeat); starts it when `play` is true.
-    func loadFavorite(groupId: String, favoriteId: String, play: Bool) async throws
-    /// Replaces the queue with a Sonos playlist, in order, and starts it.
-    func loadPlaylist(groupId: String, playlistId: String) async throws
-    /// Replaces the queue with `content`; starts it when `play` is true.
-    func loadContent(groupId: String, content: SonosContent, play: Bool) async throws
+    /// Loads a favorite into the queue, in order (no shuffle, no repeat); plays when `play` is true.
+    func loadFavorite(groupId: String, favoriteId: String, play: Bool, queueAction: SonosQueueAction) async throws
+    /// Loads a Sonos playlist into the queue, in order; plays when `play` is true.
+    func loadPlaylist(groupId: String, playlistId: String, play: Bool, queueAction: SonosQueueAction) async throws
+    /// Loads `content` into the queue; plays when `play` is true.
+    func loadContent(groupId: String, content: SonosContent, play: Bool, queueAction: SonosQueueAction) async throws
 
     // MARK: Volume
 
@@ -88,14 +88,14 @@ extension SonosManager: SonosLiveBackend {
         $isAuthenticated.eraseToAnyPublisher()
     }
 
-    public func loadFavorite(groupId: String, favoriteId: String, play: Bool) async throws {
-        try await loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: play, action: "REPLACE",
+    public func loadFavorite(groupId: String, favoriteId: String, play: Bool, queueAction: SonosQueueAction) async throws {
+        try await loadFavorite(groupId: groupId, favoriteId: favoriteId, playOnCompletion: play, action: queueAction.rawValue,
                                playModes: .inOrder)
     }
 
-    public func loadPlaylist(groupId: String, playlistId: String) async throws {
-        try await loadPlaylist(groupId: groupId, playlistId: playlistId, playOnCompletion: true, playModes: .inOrder,
-                               action: "REPLACE")
+    public func loadPlaylist(groupId: String, playlistId: String, play: Bool, queueAction: SonosQueueAction) async throws {
+        try await loadPlaylist(groupId: groupId, playlistId: playlistId, playOnCompletion: play, playModes: .inOrder,
+                               action: queueAction.rawValue)
     }
 
     public func startLiveSession(
