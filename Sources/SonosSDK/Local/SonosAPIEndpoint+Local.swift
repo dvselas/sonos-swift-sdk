@@ -5,7 +5,8 @@
 //  Which cloud endpoints the players also answer over their local socket.
 //  These are sent over the LAN when a live client is connected and fall back
 //  to the cloud otherwise. Favorites, playlists, sessions and settings stay
-//  cloud-only.
+//  cloud-only, except in local-only mode, where the players' local REST API
+//  answers them (`localTarget`, `SonosLocalHTTPClient`).
 //
 
 import Foundation
@@ -94,5 +95,47 @@ extension SonosAPIEndpoint {
         default:
             return nil
         }
+    }
+}
+
+extension SonosAPIEndpoint {
+
+    /// Which player's local REST API takes this call (`SonosLocalHTTPClient`):
+    /// the group's coordinator, the player itself, or any player of the
+    /// household. Nil for calls only the cloud answers (sign-in, cloud
+    /// subscriptions, playback sessions).
+    var localTarget: SonosLocalTarget? {
+        if let route = localRoute { return route.target }
+        switch self {
+        case .getHousehold(let householdId),
+             .setGroupMembers(let householdId, _),
+             .getFavorites(let householdId),
+             .getPlaylists(let householdId),
+             .getPlaylist(let householdId, _),
+             .matchMusicServiceAccount(let householdId, _):
+            return .household(householdId)
+        case .loadFavorite(let groupId, _, _, _, _),
+             .loadPlaylist(let groupId, _, _, _, _):
+            return .group(groupId)
+        case .duckPlayerVolume(let playerId),
+             .unduckPlayerVolume(let playerId),
+             .loadAudioClip(let playerId, _),
+             .cancelAudioClip(let playerId, _),
+             .getHomeTheaterOptions(let playerId),
+             .setHomeTheaterOptions(let playerId, _, _),
+             .loadHomeTheaterPlayback(let playerId),
+             .setTvPowerState(let playerId, _),
+             .getPlayerSettings(let playerId),
+             .setPlayerSettings(let playerId, _):
+            return .player(playerId)
+        default:
+            return nil
+        }
+    }
+
+    /// The path on a player: the cloud's path without `/control`.
+    var localPath: String {
+        let cloudPrefix = "/control"
+        return path.hasPrefix(cloudPrefix + "/") ? String(path.dropFirst(cloudPrefix.count)) : path
     }
 }
