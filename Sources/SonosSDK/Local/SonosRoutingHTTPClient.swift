@@ -43,10 +43,15 @@ final class SonosRoutingHTTPClient: HTTPClientProtocol, @unchecked Sendable {
 
     let cloud: HTTPClientProtocol
     let router: SonosLiveRouter
+    /// Local-only mode: loading favorites and playlists goes over the sockets
+    /// too (`contentRoute`), because `cloud` is the players' REST API, which
+    /// doesn't take them.
+    let routesContentLocally: Bool
 
-    init(cloud: HTTPClientProtocol, router: SonosLiveRouter) {
+    init(cloud: HTTPClientProtocol, router: SonosLiveRouter, routesContentLocally: Bool = false) {
         self.cloud = cloud
         self.router = router
+        self.routesContentLocally = routesContentLocally
     }
 
     func request<T: Decodable>(_ endpoint: SonosAPIEndpoint) async throws -> T {
@@ -76,15 +81,20 @@ final class SonosRoutingHTTPClient: HTTPClientProtocol, @unchecked Sendable {
 
     /// The reply frame, or nil when the endpoint must go to the cloud.
     private func performLocally(_ endpoint: SonosAPIEndpoint) async throws -> Data? {
-        guard endpoint.localRoute != nil, let live = router.client else { return nil }
+        guard let route = endpoint.localRoute ?? (routesContentLocally ? endpoint.contentRoute : nil),
+              let live = router.client else { return nil }
         do {
-            return try await live.perform(endpoint)
+            return try await live.perform(route)
         } catch let error as SonosLocalError {
             switch error {
             case .notConnected, .noRoute:
                 return nil
             case .commandFailed(let code, let reason):
                 throw SonosError.apiError(errorCode: code, reason: reason)
+            case .timeout where route.waitsLong:
+                // The player is still loading; report it like the cloud, so callers wait for the new queue.
+                throw SonosError.httpError(statusCode: 504, body: SonosErrorBody(errorCode: "ERROR_COMMAND_TIMEOUT",
+                                                                                 reason: error.localizedDescription))
             case .timeout, .invalidFrame, .closed:
                 throw SonosError.webSocketError(.connectionFailed(error.localizedDescription))
             }

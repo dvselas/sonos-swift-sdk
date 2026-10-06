@@ -79,18 +79,30 @@ final class SonosLocalHTTPClientTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.requests.compactMap { $0.request.url?.host }, ["10.0.0.1", "10.0.0.2"])
     }
 
-    func testFavoritesLoadOnTheGroupsCoordinator() async throws {
-        StubURLProtocol.reset([.init(body: "")])
+    func testGroupCallsGoToTheCoordinator() async throws {
+        StubURLProtocol.reset([.init(body: #"{"volume":20,"muted":false,"fixed":false}"#)])
 
-        try await client([kids, dining]).request(.loadFavorite(groupId: "RINCON_000000000002:17", favoriteId: "7",
-                                                               playOnCompletion: true, action: "REPLACE", playModes: .inOrder))
+        try await client([kids, dining]).request(.setGroupVolume(groupId: "RINCON_000000000002:17", volume: 20))
 
         let sent = try XCTUnwrap(StubURLProtocol.requests.first)
         XCTAssertEqual(sent.request.httpMethod, "POST")
-        XCTAssertEqual(sent.request.url?.absoluteString, "https://10.0.0.2:1443/api/v1/groups/RINCON_000000000002:17/favorites")
+        XCTAssertEqual(sent.request.url?.absoluteString, "https://10.0.0.2:1443/api/v1/groups/RINCON_000000000002:17/groupVolume")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(sent.body)) as? [String: Any])
-        XCTAssertEqual(body["favoriteId"] as? String, "7")
-        XCTAssertEqual(body["action"] as? String, "REPLACE")
+        XCTAssertEqual(body["volume"] as? Int, 20)
+    }
+
+    func testLoadingGoesOverTheSocketsNotTheRESTAPI() {
+        let load = SonosAPIEndpoint.loadFavorite(groupId: "RINCON_000000000002:17", favoriteId: "7", playOnCompletion: false,
+                                                 action: "REPLACE", playModes: .inOrder)
+        XCTAssertNil(load.localTarget, "players answer 404 on their REST API")
+        XCTAssertNil(load.localRoute, "with the cloud, loading stays in the cloud")
+        let route = load.contentRoute
+        XCTAssertEqual(route?.namespace, "favorites")
+        XCTAssertEqual(route?.command, "loadFavorite")
+        XCTAssertEqual(route?.target, .group("RINCON_000000000002:17"))
+        XCTAssertEqual(route?.waitsLong, true)
+        XCTAssertEqual(SonosAPIEndpoint.loadPlaylist(groupId: "G:1", playlistId: "3", playOnCompletion: true, playModes: nil)
+            .contentRoute?.command, "loadPlaylist")
     }
 
     func testPlayerCallsGoToThePlayer() async throws {
@@ -124,8 +136,7 @@ final class SonosLocalHTTPClientTests: XCTestCase {
         StubURLProtocol.reset([.init(status: 499, body: #"{"errorCode":"ERROR_FAILURE_TO_ENQUEUE","reason":"no"}"#)])
 
         do {
-            try await client([kids]).request(.loadPlaylist(groupId: "RINCON_000000000001:1", playlistId: "3",
-                                                          playOnCompletion: true, playModes: nil))
+            try await client([kids]).request(.play(groupId: "RINCON_000000000001:1"))
             XCTFail("expected an error")
         } catch SonosError.httpError(let status, let body) {
             XCTAssertEqual(status, 499)
@@ -137,8 +148,7 @@ final class SonosLocalHTTPClientTests: XCTestCase {
         StubURLProtocol.reset([.init(error: URLError(.timedOut))])
 
         do {
-            try await client([kids]).request(.loadFavorite(groupId: "RINCON_000000000001:1", favoriteId: "5",
-                                                          playOnCompletion: false, action: "REPLACE"))
+            try await client([kids]).request(.getFavorites(householdId: household))
             XCTFail("expected a timeout")
         } catch SonosError.httpError(let status, _) {
             XCTAssertEqual(status, 504)

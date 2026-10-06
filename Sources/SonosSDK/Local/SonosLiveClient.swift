@@ -167,11 +167,19 @@ public actor SonosLiveClient {
     /// returns the raw reply frame. Throws `SonosLocalError.noRoute` or
     /// `.notConnected` when it can't be sent locally.
     func perform(_ endpoint: SonosAPIEndpoint) async throws -> Data {
-        guard isRunning, !isSuspended, let route = endpoint.localRoute else {
+        guard let route = endpoint.localRoute else {
             throw SonosLocalError.noRoute(String(describing: endpoint))
         }
+        return try await perform(route)
+    }
+
+    func perform(_ route: SonosLocalRoute) async throws -> Data {
+        guard isRunning, !isSuspended else {
+            throw SonosLocalError.noRoute("\(route.namespace).\(route.command)")
+        }
         let command = SonosLocalCommand(namespace: route.namespace, command: route.command,
-                                        target: route.target, householdId: householdId, body: route.body)
+                                        target: route.target, householdId: householdId, body: route.body,
+                                        timeout: route.waitsLong ? configuration.loadTimeout : nil)
         let connection = try connection(for: route.target)
         return try await connection.send(command)
     }

@@ -104,14 +104,16 @@ store.activate()
 ```
 
 It finds the players over Bonjour (`_sonos._tcp`; apps declare it in
-`NSBonjourServices` and give an `NSLocalNetworkUsageDescription`) and sends every
-call to their local REST API (`https://<player>:1443/api/v1/…`, the cloud's paths
-and bodies): group calls to the coordinator, player calls to the player,
-household calls (favorites, playlists, groups) to any player. `getHouseholds`
-asks a player which household it belongs to. Live updates and commands run over
-the players' sockets as usual. `isAuthenticated` is always true. A call that
-keeps a player busy longer than 20 s, like queuing a playlist with thousands of
-tracks, answers `504` like the cloud.
+`NSBonjourServices` and give an `NSLocalNetworkUsageDescription`). Live updates
+and commands run over the players' sockets as usual, and so does loading
+favorites and Sonos playlists, which the players' REST API doesn't take (`404`).
+Everything else, and every call while a socket is down, goes to their local REST
+API (`https://<player>:1443/api/v1/…`, the cloud's paths and bodies): group calls
+to the coordinator, player calls to the player, household calls (favorites,
+playlists, groups) to any player. `getHouseholds` asks a player which household
+it belongs to. `isAuthenticated` is always true. A load or call that keeps a
+player busy longer than 20 s (`SonosLiveConfiguration.loadTimeout`), like queuing
+a playlist with thousands of tracks, answers `504` like the cloud.
 
 This uses the players' local API, so it is only for internal evaluation and
 testing (see below).

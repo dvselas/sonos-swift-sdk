@@ -16,12 +16,17 @@ struct SonosLocalRoute: Sendable {
     let command: String
     let target: SonosLocalTarget
     let body: (any Encodable & Sendable)?
+    /// The player may take a while (loading a long playlist): waits
+    /// `SonosLiveConfiguration.loadTimeout`, and a timeout reads like the cloud's `504`.
+    let waitsLong: Bool
 
-    init(_ namespace: String, _ command: String, _ target: SonosLocalTarget, body: (any Encodable & Sendable)? = nil) {
+    init(_ namespace: String, _ command: String, _ target: SonosLocalTarget, body: (any Encodable & Sendable)? = nil,
+         waitsLong: Bool = false) {
         self.namespace = namespace
         self.command = command
         self.target = target
         self.body = body
+        self.waitsLong = waitsLong
     }
 }
 
@@ -100,10 +105,32 @@ extension SonosAPIEndpoint {
 
 extension SonosAPIEndpoint {
 
+    /// Loading favorites and Sonos playlists, which the players take over their
+    /// socket but not over their local REST API. Only local-only mode sends them
+    /// there (`SonosRoutingHTTPClient.routesContentLocally`); otherwise they go
+    /// to the cloud like before.
+    var contentRoute: SonosLocalRoute? {
+        switch self {
+        case .loadFavorite(let groupId, let favoriteId, let playOnCompletion, let action, let playModes):
+            return SonosLocalRoute("favorites", "loadFavorite", .group(groupId),
+                                   body: LoadFavoriteBody(favoriteId: favoriteId, playOnCompletion: playOnCompletion ?? true,
+                                                          action: action ?? "REPLACE", playModes: playModes),
+                                   waitsLong: true)
+        case .loadPlaylist(let groupId, let playlistId, let playOnCompletion, let playModes, let action):
+            return SonosLocalRoute("playlists", "loadPlaylist", .group(groupId),
+                                   body: LoadPlaylistBody(playlistId: playlistId, playOnCompletion: playOnCompletion ?? true,
+                                                          playModes: playModes, action: action),
+                                   waitsLong: true)
+        default:
+            return nil
+        }
+    }
+
     /// Which player's local REST API takes this call (`SonosLocalHTTPClient`):
     /// the group's coordinator, the player itself, or any player of the
     /// household. Nil for calls only the cloud answers (sign-in, cloud
-    /// subscriptions, playback sessions).
+    /// subscriptions, playback sessions) and for loading favorites and
+    /// playlists, which the REST API doesn't take (`contentRoute`).
     var localTarget: SonosLocalTarget? {
         if let route = localRoute { return route.target }
         switch self {
@@ -114,9 +141,6 @@ extension SonosAPIEndpoint {
              .getPlaylist(let householdId, _),
              .matchMusicServiceAccount(let householdId, _):
             return .household(householdId)
-        case .loadFavorite(let groupId, _, _, _, _),
-             .loadPlaylist(let groupId, _, _, _, _):
-            return .group(groupId)
         case .duckPlayerVolume(let playerId),
              .unduckPlayerVolume(let playerId),
              .loadAudioClip(let playerId, _),

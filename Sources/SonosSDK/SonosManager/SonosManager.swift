@@ -113,8 +113,8 @@ public class SonosManager: ObservableObject {
         let tokenManager = TokenManager(clientKey: key, clientSecret: "", redirectURI: "", tokenStore: InMemoryTokenStore(),
                                         legacyDefaults: UserDefaults(suiteName: "com.sonossdk.local-only") ?? .standard)
         self.init(client: Client(keyName: keyName, key: key, secret: "", redirectURI: "", callbackURL: ""),
-                  httpClient: SonosLocalHTTPClient(apiKey: key, discovery: discovery),
-                  tokenManager: tokenManager)
+                  cloud: SonosLocalHTTPClient(apiKey: key, discovery: discovery),
+                  tokenManager: tokenManager, routesContentLocally: true)
         isAuthenticated = true
     }
 
@@ -145,11 +145,15 @@ public class SonosManager: ObservableObject {
     }
 
     /// Initialize with custom HTTP client (for testing)
-    public init(client: Client, httpClient: HTTPClientProtocol, tokenManager: TokenManager) {
+    public convenience init(client: Client, httpClient: HTTPClientProtocol, tokenManager: TokenManager) {
+        self.init(client: client, cloud: httpClient, tokenManager: tokenManager, routesContentLocally: false)
+    }
+
+    init(client: Client, cloud: HTTPClientProtocol, tokenManager: TokenManager, routesContentLocally: Bool) {
         self.client = client
         let router = SonosLiveRouter()
         self.liveRouter = router
-        self.httpClient = SonosRoutingHTTPClient(cloud: httpClient, router: router)
+        self.httpClient = SonosRoutingHTTPClient(cloud: cloud, router: router, routesContentLocally: routesContentLocally)
         self.tokenManager = tokenManager
     }
 }

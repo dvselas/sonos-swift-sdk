@@ -86,13 +86,17 @@ struct SonosLocalCommand: Sendable {
     let target: SonosLocalTarget
     let householdId: String?
     let body: (any Encodable & Sendable)?
+    /// Seconds to wait for the reply; nil uses `SonosLiveConfiguration.commandTimeout`.
+    let timeout: TimeInterval?
 
-    init(namespace: String, command: String, target: SonosLocalTarget, householdId: String? = nil, body: (any Encodable & Sendable)? = nil) {
+    init(namespace: String, command: String, target: SonosLocalTarget, householdId: String? = nil,
+         body: (any Encodable & Sendable)? = nil, timeout: TimeInterval? = nil) {
         self.namespace = namespace
         self.command = command
         self.target = target
         self.householdId = householdId
         self.body = body
+        self.timeout = timeout
     }
 
     var description: String { "\(namespace).\(command)(\(target.id))" }
